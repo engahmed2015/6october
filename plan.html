@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>المرحلة الثانية: نسور السماء - الضربة الجوية لسيناء 1973</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #020912;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px 25px;
+    }
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 15px;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+    }
+    .badge {
+      background: rgba(4, 20, 34, 0.85);
+      border: 1px solid #00f0ff;
+      padding: 8px 18px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+    #warning-box {
+      color: #ff3344;
+      font-size: 16px;
+      display: none;
+      animation: blink 0.5s infinite alternate;
+    }
+    #stall-warning {
+      color: #ffaa00;
+      font-size: 17px;
+      display: none;
+      animation: blink 0.3s infinite alternate;
+    }
+    @keyframes blink { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+
+    #crosshair {
+      position: absolute;
+      top: 48%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 64px;
+      height: 64px;
+      border: 2px dashed rgba(0, 240, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: all 0.15s ease-out;
+    }
+    #crosshair.locked {
+      border: 3px solid #ff1144;
+      box-shadow: 0 0 25px #ff1144, inset 0 0 15px rgba(255, 17, 68, 0.4);
+      width: 82px;
+      height: 82px;
+    }
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: #00f0ff;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+    }
+    #crosshair.locked::after {
+      background: #ff1144;
+      box-shadow: 0 0 8px #ff1144;
+    }
+
+    #auto-fire-indicator {
+      position: absolute;
+      top: calc(48% + 55px);
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ff1144;
+      font-size: 13px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      letter-spacing: 1px;
+      display: none;
+      text-shadow: 0 0 6px #ff1144;
+    }
+
+    #map-wrapper {
+      position: absolute;
+      bottom: 25px;
+      left: 25px;
+      width: 260px;
+      height: 260px;
+      background: rgba(2, 14, 24, 0.92);
+      border: 2px solid #00f0ff;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+      overflow: hidden;
+      pointer-events: none;
+    }
+    #map-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #map-title {
+      position: absolute;
+      top: 6px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #00f0ff;
+    }
+
+    #action-hint {
+      position: absolute;
+      bottom: 35px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(4, 20, 34, 0.9);
+      border: 1px solid #ffd166;
+      color: #ffd166;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px 24px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    #dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(2, 14, 26, 0.96);
+      border: 2px solid #00f0ff;
+      padding: 30px 45px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      z-index: 20;
+    }
+    #dialog h2 { margin-bottom: 12px; font-size: 24px; color: #00f0ff; }
+    #dialog p { margin-bottom: 25px; font-size: 15px; color: #caf0f8; line-height: 1.7; }
+    .btn {
+      background: #0077b6;
+      border: none;
+      color: #fff;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 0 15px rgba(0, 119, 182, 0.5);
+    }
+    .btn:hover { background: #0096c7; }
+
+    /* شاشة الفيديو الافتتاحي وزر التخطي */
+    #videoModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .video-wrapper {
+      width: 100%;
+      max-width: 900px;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      outline: none;
+    }
+    .skip-btn {
+      margin-top: 18px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #e5e7eb;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 10px 30px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .skip-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #00f0ff;
+      color: #00f0ff;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- مشغل الموسيقى الخلفية mp3.mp3 -->
+<audio id="bg-music" loop preload="auto">
+  <source src="mp3.mp3" type="audio/mpeg">
+  <source src="mp3" type="audio/mpeg">
+</audio>
+
+<!-- نافذة الفيديو الافتتاحي plan.mp4 -->
+<div id="videoModal">
+  <div class="video-wrapper">
+    <video id="introVideo" preload="auto">
+      <source src="plan.mp4" type="video/mp4">
+      متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+  </div>
+  <button class="skip-btn" onclick="endVideoAndStartGame()">تخطي الفيديو وبدء المعركة الجوية ⏩</button>
+</div>
+
+<div id="webgl-container"></div>
+
+<div id="hud-overlay">
+  <div class="hud-header">
+    <div class="badge">الأهداف المتبقية: <span id="remaining-targets">3 / 3</span></div>
+    <div id="warning-box">⚠️ تحذير: نيران دفاعات أرضية وصواريخ تستهدف الطائرة!</div>
+    <div id="stall-warning">⚠️ فقدان سرعة ورفع ديناميكي (STALL)!</div>
+    <div class="badge">السرعة: <span id="airspeed-txt">0</span> كم/س | الارتفاع: <span id="alt-txt">0</span> م</div>
+  </div>
+
+  <div id="crosshair"></div>
+  <div id="auto-fire-indicator">⚡ قفل استهداف - إطلاق آلي ⚡</div>
+
+  <div id="map-wrapper">
+    <span id="map-title">رادار سيناء التكتيكي</span>
+    <canvas id="map-canvas" width="260" height="260"></canvas>
+  </div>
+
+  <div id="action-hint">
+    [ ↑ أو ذراع USB للأمام ] للتسارع | [ ↓ ] للفرملة | [ Space أو X بالذراع + ↑/↓ ] للارتفاع والهبوط | القصف آلي
+  </div>
+</div>
+
+<div id="dialog">
+  <h2 id="dialog-title">تمت المهمة بنجاح</h2>
+  <p id="dialog-desc">تم تدمير مراكز القيادة وقواعد العدو المحددة في عمق سيناء بنجاح تام.<br>جاري نقلك للمرحلة التالية...</p>
+  <button class="btn" id="dialog-btn" onclick="handleDialogAction()">الانتقال الآن</button>
+</div>
+
+<script>
+// --- التحكم في الفيديو والموسيقى وبدء اللعبة ---
+const videoModal = document.getElementById('videoModal');
+const introVideo = document.getElementById('introVideo');
+const bgMusic = document.getElementById('bg-music');
+let gameActive = false;
+
+window.addEventListener('DOMContentLoaded', () => {
+  introVideo.play().catch(err => {
+    console.log("Autoplay was prevented, waiting for user click:", err);
+  });
+});
+
+introVideo.onended = function() {
+  endVideoAndStartGame();
+};
+
+function endVideoAndStartGame() {
+  introVideo.pause();
+  videoModal.style.display = 'none';
+  gameActive = true;
+  initAudio();
+  initJetEngineSound();
+  bgMusic.play().catch(e => console.log("Audio play error:", e));
+}
+
+// --- نظام الصوت المدمج (Web Audio API) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+// عقد صوت محرك الطائرة النفاثة
+let jetGain = null;
+let jetFilter = null;
+let jetLowTone = null;
+let jetLowGain = null;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// إنشاء محاكي صوت محرك الطائرة المستمر
+function initJetEngineSound() {
+  if (!audioCtx || jetGain) return;
+
+  const bufferSize = audioCtx.sampleRate * 2;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    output[i] = Math.random() * 2 - 1;
+  }
+
+  const whiteNoise = audioCtx.createBufferSource();
+  whiteNoise.buffer = noiseBuffer;
+  whiteNoise.loop = true;
+
+  jetFilter = audioCtx.createBiquadFilter();
+  jetFilter.type = 'bandpass';
+  jetFilter.frequency.value = 280;
+  jetFilter.Q.value = 1.6;
+
+  jetGain = audioCtx.createGain();
+  jetGain.gain.value = 0.05;
+
+  whiteNoise.connect(jetFilter);
+  jetFilter.connect(jetGain);
+
+  // نغمة التوربين المنخفضة المرافقة للمحرك
+  jetLowTone = audioCtx.createOscillator();
+  jetLowTone.type = 'triangle';
+  jetLowTone.frequency.value = 55;
+
+  jetLowGain = audioCtx.createGain();
+  jetLowGain.gain.value = 0.08;
+
+  jetLowTone.connect(jetLowGain);
+  jetLowGain.connect(jetGain);
+
+  jetGain.connect(audioCtx.destination);
+
+  whiteNoise.start();
+  jetLowTone.start();
+}
+
+// تحديث صوت المحرك مع تغير سرعة الطائرة
+function updateJetEngineSound(speed, maxSpeed) {
+  if (!jetGain || !jetFilter || !jetLowTone) return;
+
+  let ratio = Math.min(1, Math.max(0, speed / maxSpeed));
+  
+  // رفع تردد الفلتر والنغمة بزيادة السرعة لإعطاء زئير نفاث واقعي
+  let targetFreq = 220 + ratio * 850;
+  let targetLowFreq = 50 + ratio * 95;
+  let targetVolume = 0.08 + ratio * 0.22;
+
+  jetFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+  jetLowTone.frequency.setTargetAtTime(targetLowFreq, audioCtx.currentTime, 0.1);
+  jetGain.gain.setTargetAtTime(targetVolume, audioCtx.currentTime, 0.1);
+}
+
+function playRocketLaunchSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(140, audioCtx.currentTime + 0.3);
+
+  gain.gain.setValueAtTime(0.45, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function playBombDropSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.4);
+
+  gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function playImpactSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+
+  gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function playExplosionSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate * 0.9;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.25));
+  }
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+  filter.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.9);
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(1.1, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.9);
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  noise.start();
+}
+
+function playFlakSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
+
+  gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// --- مشهد Three.js ثلاثي الأبعاد ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3a6073);
+scene.fog = new THREE.FogExp2(0x3a6073, 0.0003);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 18000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.getElementById('webgl-container').appendChild(renderer.domElement);
+
+const sunLight = new THREE.DirectionalLight(0xfff5e0, 2.5);
+sunLight.position.set(400, 1200, 500);
+scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x718fa0, 1.2));
+
+// --- مسرح العمليات والبيئة ---
+const WORLD_WIDTH = 5000;
+const WORLD_LENGTH = 11000;
+const WATER_END_Z = 2400;
+
+const destructibleObjects = [];
+const hostileBuildings = [];
+
+function getTerrainHeight(x, z) {
+  if (z <= WATER_END_Z) return 0;
+  let h = Math.sin(x * 0.004) * Math.cos(z * 0.003) * 22;
+  h += Math.sin(z * 0.0018) * 14;
+  return Math.max(1, h);
+}
+
+function createTheaterEnvironment() {
+  const waterGeo = new THREE.PlaneGeometry(WORLD_WIDTH, WATER_END_Z);
+  waterGeo.rotateX(-Math.PI / 2);
+  const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ color: 0x0f4c64, roughness: 0.15, metalness: 0.4 }));
+  water.position.set(0, 0, WATER_END_Z / 2);
+  scene.add(water);
+
+  const desertLength = WORLD_LENGTH - WATER_END_Z;
+  const terrainGeo = new THREE.PlaneGeometry(WORLD_WIDTH, desertLength, 70, 120);
+  terrainGeo.rotateX(-Math.PI / 2);
+  const pos = terrainGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    let z = pos.getZ(i) + (WATER_END_Z + desertLength / 2);
+    pos.setY(i, getTerrainHeight(x, z));
+  }
+  terrainGeo.computeVertexNormals();
+
+  const terrain = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ color: 0xb58953, roughness: 0.9, flatShading: true }));
+  terrain.position.set(0, 0, WATER_END_Z + desertLength / 2);
+  scene.add(terrain);
+
+  const RUNWAY_W = 50;
+  const RUNWAY_L = 1200;
+  const runwayGeo = new THREE.PlaneGeometry(RUNWAY_W, RUNWAY_L);
+  runwayGeo.rotateX(-Math.PI / 2);
+  const runway = new THREE.Mesh(runwayGeo, new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.7 }));
+  runway.position.set(0, 1.2, RUNWAY_L / 2 + 50);
+  scene.add(runway);
+
+  buildProceduralMilitaryBases();
+}
+
+function buildProceduralMilitaryBases() {
+  const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x2b333a, roughness: 0.8 });
+  const turretMat = new THREE.MeshStandardMaterial({ color: 0x1a2128, metalness: 0.8 });
+
+  for (let z = WATER_END_Z + 600; z < WORLD_LENGTH - 600; z += 900) {
+    let baseX = (Math.sin(z) * 0.6) * (WORLD_WIDTH * 0.3);
+    let groundY = getTerrainHeight(baseX, z);
+
+    const bldgW = 46, bldgH = 24, bldgD = 50;
+    const bldgGroup = new THREE.Group();
+    const bldg = new THREE.Mesh(new THREE.BoxGeometry(bldgW, bldgH, bldgD), bunkerMat);
+    bldg.position.y = bldgH / 2;
+    bldgGroup.add(bldg);
+
+    const turret = new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 4, 8), turretMat);
+    turret.position.set(0, bldgH + 2, 0);
+    bldgGroup.add(turret);
+
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8, 8), turretMat);
+    barrel.rotation.x = Math.PI / 3;
+    barrel.position.set(0, bldgH + 4, 2);
+    bldgGroup.add(barrel);
+
+    bldgGroup.position.set(baseX, groundY, z);
+    scene.add(bldgGroup);
+
+    const bldgItem = {
+      x: baseX,
+      y: groundY + bldgH / 2,
+      z: z,
+      halfW: bldgW / 2 + 4,
+      halfH: bldgH / 2 + 4,
+      halfD: bldgD / 2 + 4,
+      radius: 35,
+      mesh: bldgGroup,
+      destroyed: false,
+      isMajorTarget: false,
+      name: "دشمة دفاعية معادية"
+    };
+
+    destructibleObjects.push(bldgItem);
+    hostileBuildings.push({
+      x: baseX,
+      y: groundY + bldgH + 4,
+      z: z,
+      parentObj: bldgItem,
+      lastShot: 0
+    });
+  }
+}
+createTheaterEnvironment();
+
+// --- مجسم المقاتلة ---
+const jetGroup = new THREE.Group();
+function buildFighterJet() {
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x6e7d8c, metalness: 0.75, roughness: 0.28 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f2838, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.85 });
+
+  const bodyGeo = new THREE.ConeGeometry(2.1, 16, 16);
+  bodyGeo.rotateX(Math.PI / 2);
+  jetGroup.add(new THREE.Mesh(bodyGeo, metalMat));
+
+  const cockpitGeo = new THREE.SphereGeometry(1.2, 16, 16);
+  cockpitGeo.scale(0.8, 0.7, 2.2);
+  const cockpit = new THREE.Mesh(cockpitGeo, glassMat);
+  cockpit.position.set(0, 1.2, 0.8);
+  jetGroup.add(cockpit);
+
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(0, 2.4);
+  wingShape.lineTo(8.2, -3.4);
+  wingShape.lineTo(-8.2, -3.4);
+  wingShape.closePath();
+  const wing = new THREE.Mesh(new THREE.ShapeGeometry(wingShape).rotateX(-Math.PI / 2), metalMat);
+  wing.position.set(0, 0.1, 0);
+  jetGroup.add(wing);
+
+  const finShape = new THREE.Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(0, 3.4);
+  finShape.lineTo(2.6, 0);
+  finShape.closePath();
+  const fin = new THREE.Mesh(new THREE.ShapeGeometry(finShape).rotateY(Math.PI / 2), metalMat);
+  fin.position.set(0, 0.8, -6.5);
+  jetGroup.add(fin);
+
+  const flameGeo = new THREE.ConeGeometry(0.9, 4.2, 8);
+  flameGeo.rotateX(-Math.PI / 2);
+  const flame = new THREE.Mesh(flameGeo, new THREE.MeshBasicMaterial({ color: 0x00f0ff }));
+  flame.position.set(0, 0, -9.2);
+  jetGroup.add(flame);
+  jetGroup.flame = flame;
+
+  jetGroup.position.set(0, 2.8, 120);
+  scene.add(jetGroup);
+}
+buildFighterJet();
+
+// --- الأهداف الرئيسية الـ 3 ---
+const targetsData = [
+  { name: "مطار المليز (قاعدة جوية)",    x: -320, z: 4200, destroyed: false, mesh: null },
+  { name: "مركز قيادة أم مرجم",        x: 350,  z: 7000, destroyed: false, mesh: null },
+  { name: "محطة رادار أم خشيب",        x: -220, z: 9800, destroyed: false, mesh: null }
+];
+
+function buildMajorTargets() {
+  const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x343a40, roughness: 0.7, metalness: 0.2 });
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xff1e42, side: THREE.DoubleSide });
+
+  targetsData.forEach(t => {
+    const group = new THREE.Group();
+    const groundY = getTerrainHeight(t.x, t.z);
+
+    const bunkerW = 75, bunkerH = 34, bunkerD = 85;
+    const bunker = new THREE.Mesh(new THREE.BoxGeometry(bunkerW, bunkerH, bunkerD), bunkerMat);
+    bunker.position.y = bunkerH / 2;
+    group.add(bunker);
+
+    const radome = new THREE.Mesh(new THREE.SphereGeometry(14, 16, 16), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
+    radome.position.set(0, 42, 0);
+    group.add(radome);
+
+    const ring = new THREE.Mesh(new THREE.RingGeometry(38, 50, 24), ringMat);
+    ring.rotateX(-Math.PI / 2);
+    ring.position.y = 35;
+    group.add(ring);
+
+    const light = new THREE.PointLight(0xff1e42, 6, 140);
+    light.position.y = 55;
+    group.add(light);
+
+    group.position.set(t.x, groundY, t.z);
+    scene.add(group);
+    t.mesh = group;
+
+    const majorObj = {
+      x: t.x,
+      y: groundY + bunkerH / 2,
+      z: t.z,
+      halfW: bunkerW / 2 + 6,
+      halfH: bunkerH / 2 + 10,
+      halfD: bunkerD / 2 + 6,
+      radius: 60,
+      mesh: group,
+      destroyed: false,
+      isMajorTarget: true,
+      dataRef: t,
+      name: t.name
+    };
+
+    destructibleObjects.push(majorObj);
+    t.objectRef = majorObj;
+  });
+}
+buildMajorTargets();
+
+// --- نظام جسيمات الانفجار ---
+let explosions = [];
+let flyingDebris = [];
+
+function destroyBuilding(targetObj, hitPoint, impactDirection) {
+  if (targetObj.destroyed) return;
+  targetObj.destroyed = true;
+
+  playImpactSound();
+  playExplosionSound();
+
+  if (targetObj.isMajorTarget && targetObj.dataRef) {
+    targetObj.dataRef.destroyed = true;
+  }
+
+  const expGroup = new THREE.Group();
+  const flash = new THREE.PointLight(0xff4500, 16, 180);
+  flash.position.copy(hitPoint);
+  expGroup.add(flash);
+
+  const fireball = new THREE.Mesh(
+    new THREE.SphereGeometry(26, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0.95 })
+  );
+  fireball.position.copy(hitPoint);
+  expGroup.add(fireball);
+
+  scene.add(expGroup);
+  explosions.push({
+    group: expGroup,
+    fireball: fireball,
+    flash: flash,
+    life: 30
+  });
+
+  if (targetObj.mesh) {
+    scene.remove(targetObj.mesh);
+  }
+
+  const wreckage = new THREE.Mesh(
+    new THREE.BoxGeometry(targetObj.halfW * 1.6, 3, targetObj.halfD * 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1.0 })
+  );
+  wreckage.position.set(targetObj.x, targetObj.y - targetObj.halfH + 1.5, targetObj.z);
+  scene.add(wreckage);
+
+  const debrisGeo = new THREE.BoxGeometry(3, 3, 3);
+  for (let i = 0; i < 35; i++) {
+    const dMat = new THREE.MeshBasicMaterial({ color: (i % 2 === 0) ? 0x222222 : 0xff3300 });
+    const dMesh = new THREE.Mesh(debrisGeo, dMat);
+    dMesh.position.copy(hitPoint);
+    scene.add(dMesh);
+
+    flyingDebris.push({
+      mesh: dMesh,
+      vel: new THREE.Vector3(
+        impactDirection.x * 3 + (Math.random() - 0.5) * 6,
+        Math.random() * 5 + 3,
+        impactDirection.z * 3 + (Math.random() - 0.5) * 6
+      ),
+      rot: new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2),
+      life: 70
+    });
+  }
+
+  let remainingMajor = targetsData.filter(t => !t.destroyed).length;
+  document.getElementById('remaining-targets').innerText = `${remainingMajor} / 3`;
+
+  if (remainingMajor === 0) {
+    triggerVictory();
+  }
+}
+
+// --- بطاريات صواريخ سام ---
+const samSites = [
+  { x: -220, z: 5200 },
+  { x: 260,  z: 8200 }
+];
+
+function buildSamSites() {
+  const siteMat = new THREE.MeshStandardMaterial({ color: 0x2c3539, metalness: 0.8, roughness: 0.3 });
+  samSites.forEach(s => {
+    const groundY = getTerrainHeight(s.x, s.z);
+    s.y = groundY;
+    const siteGroup = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(10, 12, 4, 12), siteMat);
+    siteGroup.add(base);
+
+    for (let i = 0; i < 3; i++) {
+      const launcher = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 12, 8), siteMat);
+      launcher.rotation.x = -Math.PI / 3;
+      launcher.rotation.y = (i - 1) * 0.4;
+      launcher.position.set((i - 1) * 4, 6, 0);
+      siteGroup.add(launcher);
+    }
+
+    siteGroup.position.set(s.x, groundY + 2, s.z);
+    scene.add(siteGroup);
+  });
+}
+buildSamSites();
+
+let risingMissiles = [];
+function launchRisingMissile(site) {
+  const missileGroup = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 0.9, 9, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xff3300, emissiveIntensity: 1.0 })
+  );
+  missileGroup.add(body);
+
+  const fire = new THREE.Mesh(new THREE.SphereGeometry(2.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2200 }));
+  fire.position.y = -5.0;
+  missileGroup.add(fire);
+
+  const light = new THREE.PointLight(0xff4500, 4, 45);
+  light.position.y = -5.0;
+  missileGroup.add(light);
+
+  missileGroup.position.set(site.x, site.y + 6, site.z);
+  scene.add(missileGroup);
+
+  risingMissiles.push({
+    mesh: missileGroup,
+    speed: 5.2,
+    life: 200
+  });
+}
+
+let groundTracerShots = [];
+function fireFromBuilding(bldg) {
+  if (bldg.parentObj && bldg.parentObj.destroyed) return;
+  playFlakSound();
+
+  const tracer = new THREE.Mesh(
+    new THREE.SphereGeometry(1.6, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff2200 })
+  );
+  tracer.position.set(bldg.x, bldg.y, bldg.z);
+  scene.add(tracer);
+
+  const predictedJetPos = jetGroup.position.clone().add(
+    new THREE.Vector3(
+      Math.sin(flight.heading) * flight.speed * 12,
+      0,
+      Math.cos(flight.heading) * flight.speed * 12
+    )
+  );
+
+  const dir = new THREE.Vector3().subVectors(predictedJetPos, tracer.position).normalize();
+  groundTracerShots.push({
+    mesh: tracer,
+    vel: dir.multiplyScalar(6.2),
+    life: 130
+  });
+}
+
+let activeRockets = [];
+let lastAutoFireTime = 0;
+
+function fireRocket() {
+  playRocketLaunchSound();
+
+  const rocketGroup = new THREE.Group();
+  const rBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.85, 0.85, 8.5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00d4ff, emissiveIntensity: 1.0 })
+  );
+  rBody.rotation.x = Math.PI / 2;
+  rocketGroup.add(rBody);
+
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.95, 3.2, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  tip.position.set(0, 0, 4.8);
+  tip.rotation.x = Math.PI / 2;
+  rocketGroup.add(tip);
+
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(2.0, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00f0ff }));
+  flame.position.set(0, 0, -4.8);
+  rocketGroup.add(flame);
+
+  const rocketLight = new THREE.PointLight(0x00f0ff, 5, 55);
+  rocketGroup.add(rocketLight);
+
+  const forwardOffset = new THREE.Vector3(0, -0.4, 8);
+  forwardOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), flight.heading);
+  rocketGroup.position.copy(jetGroup.position).add(forwardOffset);
+  rocketGroup.rotation.set(flight.pitch, flight.heading, 0);
+
+  scene.add(rocketGroup);
+
+  const rocketSpeed = flight.speed + 14.0;
+  const vx = Math.sin(flight.heading) * Math.cos(flight.pitch) * rocketSpeed;
+  const vy = -Math.sin(flight.pitch) * rocketSpeed;
+  const vz = Math.cos(flight.heading) * Math.cos(flight.pitch) * rocketSpeed;
+
+  activeRockets.push({
+    mesh: rocketGroup,
+    vx: vx,
+    vy: vy,
+    vz: vz,
+    dir: new THREE.Vector3(vx, vy, vz).normalize(),
+    life: 180
+  });
+}
+
+let activeBombs = [];
+let lastBombDropTime = 0;
+
+function dropVerticalBomb() {
+  playBombDropSound();
+
+  const bombGroup = new THREE.Group();
+  const bBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.2, 5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 })
+  );
+  bombGroup.add(bBody);
+
+  const fin = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 0.4, 3),
+    new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+  );
+  fin.position.y = 2.2;
+  bombGroup.add(fin);
+
+  bombGroup.position.copy(jetGroup.position);
+  bombGroup.position.y -= 2;
+  scene.add(bombGroup);
+
+  activeBombs.push({
+    mesh: bombGroup,
+    vy: -2.5,
+    vz: flight.speed * 0.7,
+    vx: Math.sin(flight.heading) * flight.speed * 0.7,
+    life: 120
+  });
+}
+
+let flight = {
+  isAirborne: false,
+  speed: 0,
+  maxSpeed: 8.8,
+  minFlySpeed: 2.8,
+  heading: 0,
+  pitch: 0,
+  roll: 0
+};
+
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  initAudio();
+  if (gameActive) initJetEngineSound();
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('click', () => {
+  initAudio();
+  if (gameActive) initJetEngineSound();
+});
+window.addEventListener('gamepadconnected', () => {
+  initAudio();
+  if (gameActive) initJetEngineSound();
+});
+
+// قراءة مدخلات دراع التحكم USB Gamepad
+function getGamepadState() {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = null;
+  for (let i = 0; i < gamepads.length; i++) {
+    if (gamepads[i]) { gp = gamepads[i]; break; }
+  }
+
+  const state = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    actionX: false
+  };
+
+  if (!gp) return state;
+
+  const DEADZONE = 0.25;
+  const axisX = gp.axes[0] || 0;
+  const axisY = gp.axes[1] || 0;
+
+  // المحاور والـ D-Pad
+  if (axisY < -DEADZONE || (gp.buttons[12] && gp.buttons[12].pressed)) state.up = true;
+  if (axisY > DEADZONE || (gp.buttons[13] && gp.buttons[13].pressed)) state.down = true;
+  if (axisX < -DEADZONE || (gp.buttons[14] && gp.buttons[14].pressed)) state.left = true;
+  if (axisX > DEADZONE || (gp.buttons[15] && gp.buttons[15].pressed)) state.right = true;
+
+  // زر X (الزر 0 أو 2)
+  if ((gp.buttons[0] && gp.buttons[0].pressed) || (gp.buttons[2] && gp.buttons[2].pressed)) {
+    state.actionX = true;
+  }
+
+  return state;
+}
+
+let isGameOver = false;
+let isVictory = false;
+
+const airspeedTxt = document.getElementById('airspeed-txt');
+const altTxt = document.getElementById('alt-txt');
+const actionHint = document.getElementById('action-hint');
+const warningBox = document.getElementById('warning-box');
+const stallWarning = document.getElementById('stall-warning');
+const crosshair = document.getElementById('crosshair');
+const autoFireIndicator = document.getElementById('auto-fire-indicator');
+const mapCanvas = document.getElementById('map-canvas');
+const mapCtx = mapCanvas.getContext('2d');
+const dialog = document.getElementById('dialog');
+const dialogTitle = document.getElementById('dialog-title');
+const dialogDesc = document.getElementById('dialog-desc');
+const dialogBtn = document.getElementById('dialog-btn');
+
+let frameCounter = 0;
+
+function update() {
+  if (!gameActive || isGameOver || isVictory) return;
+  frameCounter++;
+
+  const gp = getGamepadState();
+
+  let isSpacePressed = keys['Space'] || gp.actionX;
+  let isUpPressed = keys['ArrowUp'] || gp.up;
+  let isDownPressed = keys['ArrowDown'] || gp.down;
+  let isLeftPressed = keys['ArrowLeft'] || gp.left;
+  let isRightPressed = keys['ArrowRight'] || gp.right;
+
+  // التسارع والفرملة
+  if (isUpPressed && !isSpacePressed) {
+    flight.speed = Math.min(flight.maxSpeed, flight.speed + 0.055);
+  } else if (isDownPressed && !isSpacePressed) {
+    flight.speed = Math.max(0, flight.speed - 0.065);
+  } else {
+    if (flight.isAirborne && flight.speed > 5.5) flight.speed -= 0.01;
+  }
+
+  // تحديث صوت المحرك النفاث التفاعلي
+  updateJetEngineSound(flight.speed, flight.maxSpeed);
+
+  let flameScale = (flight.speed / flight.maxSpeed) * 2.2;
+  jetGroup.flame.scale.set(Math.max(0.4, flameScale), Math.max(0.4, flameScale * 1.5), Math.max(0.4, flameScale));
+
+  if (!flight.isAirborne) {
+    jetGroup.position.z += flight.speed;
+    if (flight.speed >= flight.minFlySpeed && jetGroup.position.z > 500) {
+      flight.isAirborne = true;
+      actionHint.innerText = "أنت في الجو! [ Space أو X بالذراع + ↑/↓ ] للارتفاع والهبوط | القصف بالصواريخ والقنابل يتم أوتوماتيكياً";
+      actionHint.style.color = "#00f0ff";
+    }
+  } else {
+    if (isSpacePressed && isUpPressed) {
+      jetGroup.position.y = Math.min(420, jetGroup.position.y + 1.6);
+      flight.pitch = THREE.MathUtils.lerp(flight.pitch, -0.22, 0.1);
+    } else if (isSpacePressed && isDownPressed) {
+      jetGroup.position.y = Math.max(8, jetGroup.position.y - 1.6);
+      flight.pitch = THREE.MathUtils.lerp(flight.pitch, 0.22, 0.1);
+    } else {
+      flight.pitch = THREE.MathUtils.lerp(flight.pitch, 0, 0.1);
+    }
+
+    if (flight.speed < flight.minFlySpeed) {
+      stallWarning.style.display = 'block';
+      jetGroup.position.y -= (flight.minFlySpeed - flight.speed) * 0.45;
+      flight.pitch = THREE.MathUtils.lerp(flight.pitch, 0.28, 0.08);
+
+      if (jetGroup.position.y <= 6) {
+        triggerDefeat("سقطت الطائرة واصطدمت بالأرض بسبب انعدام السرعة وفقدان الرفع!");
+        return;
+      }
+    } else {
+      stallWarning.style.display = 'none';
+    }
+
+    if (isRightPressed) {
+      flight.heading += 0.026;
+      flight.roll = THREE.MathUtils.lerp(flight.roll, -0.45, 0.1);
+    } else if (isLeftPressed) {
+      flight.heading -= 0.026;
+      flight.roll = THREE.MathUtils.lerp(flight.roll, 0.45, 0.1);
+    } else {
+      flight.roll = THREE.MathUtils.lerp(flight.roll, 0, 0.1);
+    }
+
+    jetGroup.position.x += Math.sin(flight.heading) * flight.speed;
+    jetGroup.position.z += Math.cos(flight.heading) * flight.speed;
+    jetGroup.rotation.set(flight.pitch, flight.heading, flight.roll);
+  }
+
+  let camOffset = new THREE.Vector3(0, 8, -28);
+  camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), flight.heading);
+  camera.position.copy(jetGroup.position).add(camOffset);
+
+  let lookTarget = jetGroup.position.clone().add(
+    new THREE.Vector3(Math.sin(flight.heading) * 75, 0, Math.cos(flight.heading) * 75)
+  );
+  camera.lookAt(lookTarget);
+
+  airspeedTxt.innerText = Math.round(flight.speed * 165);
+  altTxt.innerText = Math.max(0, Math.round(jetGroup.position.y * 10));
+
+  for (let i = 0; i < destructibleObjects.length; i++) {
+    const obs = destructibleObjects[i];
+    if (obs.destroyed) continue;
+
+    const dx = Math.abs(jetGroup.position.x - obs.x);
+    const dy = Math.abs(jetGroup.position.y - obs.y);
+    const dz = Math.abs(jetGroup.position.z - obs.z);
+
+    if (dx < obs.halfW && dy < obs.halfH && dz < obs.halfD) {
+      triggerVisualSimpleExplosion(jetGroup.position);
+      triggerDefeat(`اصطدمت الطائرة مباشرة بـ [${obs.name}] وتدمرت بالكامل!`);
+      return;
+    }
+  }
+
+  let autoLockedTarget = null;
+  const forwardVec = new THREE.Vector3(
+    Math.sin(flight.heading) * Math.cos(flight.pitch),
+    -Math.sin(flight.pitch),
+    Math.cos(flight.heading) * Math.cos(flight.pitch)
+  ).normalize();
+
+  for (let i = 0; i < destructibleObjects.length; i++) {
+    const obj = destructibleObjects[i];
+    if (obj.destroyed) continue;
+
+    const targetCenter = new THREE.Vector3(obj.x, obj.y, obj.z);
+    const toTarget = new THREE.Vector3().subVectors(targetCenter, jetGroup.position);
+    const dist = toTarget.length();
+    const dot = toTarget.normalize().dot(forwardVec);
+
+    if (dist > 150 && dist < 1700 && dot > 0.90) {
+      autoLockedTarget = obj;
+    }
+
+    const horizontalDist = Math.hypot(obj.x - jetGroup.position.x, obj.z - jetGroup.position.z);
+    if (horizontalDist < 60 && jetGroup.position.y > obj.y + 10 && flight.isAirborne) {
+      if (frameCounter - lastBombDropTime > 25) {
+        dropVerticalBomb();
+        lastBombDropTime = frameCounter;
+      }
+    }
+  }
+
+  if (autoLockedTarget) {
+    crosshair.classList.add('locked');
+    autoFireIndicator.style.display = 'block';
+
+    if (frameCounter - lastAutoFireTime > 18 && flight.isAirborne) {
+      fireRocket();
+      lastAutoFireTime = frameCounter;
+    }
+  } else {
+    crosshair.classList.remove('locked');
+    autoFireIndicator.style.display = 'none';
+  }
+
+  for (let i = activeRockets.length - 1; i >= 0; i--) {
+    let r = activeRockets[i];
+    r.mesh.position.x += r.vx;
+    r.mesh.position.y += r.vy;
+    r.mesh.position.z += r.vz;
+    r.life--;
+
+    for (let j = 0; j < destructibleObjects.length; j++) {
+      let obj = destructibleObjects[j];
+      if (obj.destroyed) continue;
+
+      let dist = r.mesh.position.distanceTo(new THREE.Vector3(obj.x, obj.y, obj.z));
+      if (dist < obj.radius + 15) {
+        destroyBuilding(obj, r.mesh.position.clone(), r.dir);
+        scene.remove(r.mesh);
+        activeRockets.splice(i, 1);
+        break;
+      }
+    }
+
+    if (r && (r.mesh.position.y <= 0 || r.life <= 0)) {
+      scene.remove(r.mesh);
+      activeRockets.splice(i, 1);
+    }
+  }
+
+  for (let i = activeBombs.length - 1; i >= 0; i--) {
+    let b = activeBombs[i];
+    b.mesh.position.y += b.vy;
+    b.mesh.position.z += b.vz;
+    b.mesh.position.x += b.vx;
+    b.vy -= 0.15;
+    b.life--;
+
+    for (let j = 0; j < destructibleObjects.length; j++) {
+      let obj = destructibleObjects[j];
+      if (obj.destroyed) continue;
+
+      let dist = b.mesh.position.distanceTo(new THREE.Vector3(obj.x, obj.y, obj.z));
+      if (dist < obj.radius + 18) {
+        destroyBuilding(obj, b.mesh.position.clone(), new THREE.Vector3(0, -1, 0));
+        scene.remove(b.mesh);
+        activeBombs.splice(i, 1);
+        break;
+      }
+    }
+
+    if (b && (b.mesh.position.y <= 0 || b.life <= 0)) {
+      scene.remove(b.mesh);
+      activeBombs.splice(i, 1);
+    }
+  }
+
+  let underDirectAttack = false;
+  hostileBuildings.forEach(bldg => {
+    if (bldg.parentObj && bldg.parentObj.destroyed) return;
+    const distToJet = Math.hypot(bldg.x - jetGroup.position.x, bldg.z - jetGroup.position.z);
+    if (distToJet < 1600 && distToJet > 60 && flight.isAirborne) {
+      underDirectAttack = true;
+      if (frameCounter - bldg.lastShot > 65 + Math.random() * 35) {
+        fireFromBuilding(bldg);
+        bldg.lastShot = frameCounter;
+      }
+    }
+  });
+
+  for (let i = groundTracerShots.length - 1; i >= 0; i--) {
+    let tr = groundTracerShots[i];
+    tr.mesh.position.add(tr.vel);
+    tr.life--;
+
+    let dist = tr.mesh.position.distanceTo(jetGroup.position);
+    if (dist < 8.0) {
+      triggerVisualSimpleExplosion(jetGroup.position);
+      triggerDefeat("أصابت طائرتك نيران كثيفة من الدفاعات الأرضية للمباني المعادية!");
+      return;
+    }
+
+    if (tr.life <= 0 || tr.mesh.position.y > 600) {
+      scene.remove(tr.mesh);
+      groundTracerShots.splice(i, 1);
+    }
+  }
+
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    let exp = explosions[i];
+    exp.life--;
+    exp.fireball.scale.multiplyScalar(1.08);
+    exp.fireball.material.opacity *= 0.90;
+    exp.flash.intensity *= 0.85;
+
+    if (exp.life <= 0) {
+      scene.remove(exp.group);
+      explosions.splice(i, 1);
+    }
+  }
+
+  for (let i = flyingDebris.length - 1; i >= 0; i--) {
+    let deb = flyingDebris[i];
+    deb.mesh.position.add(deb.vel);
+    deb.vel.y -= 0.16;
+    deb.mesh.rotation.x += deb.rot.x;
+    deb.mesh.rotation.y += deb.rot.y;
+    deb.life--;
+
+    if (deb.mesh.position.y <= 1 || deb.life <= 0) {
+      scene.remove(deb.mesh);
+      flyingDebris.splice(i, 1);
+    }
+  }
+
+  let samDanger = false;
+  if (flight.isAirborne && frameCounter % 130 === 0 && flight.speed > 2) {
+    samSites.forEach(s => {
+      if (Math.abs(s.z - jetGroup.position.z) < 2600 && s.z > jetGroup.position.z) {
+        launchRisingMissile(s);
+      }
+    });
+  }
+
+  for (let i = risingMissiles.length - 1; i >= 0; i--) {
+    let rm = risingMissiles[i];
+    const missileDir = new THREE.Vector3().subVectors(jetGroup.position, rm.mesh.position).normalize();
+    rm.mesh.position.add(missileDir.multiplyScalar(rm.speed));
+    rm.mesh.lookAt(jetGroup.position);
+    rm.life--;
+
+    let dist = rm.mesh.position.distanceTo(jetGroup.position);
+    if (dist < 420) samDanger = true;
+
+    if (dist < 8.5) {
+      triggerVisualSimpleExplosion(jetGroup.position);
+      triggerDefeat("أصابتك صواريخ الدفاع الجوي الصاعدة من الأرض!");
+      return;
+    }
+
+    if (rm.life <= 0 || rm.mesh.position.y > 600) {
+      scene.remove(rm.mesh);
+      risingMissiles.splice(i, 1);
+    }
+  }
+
+  warningBox.style.display = (samDanger || underDirectAttack) ? 'block' : 'none';
+
+  drawTacticalMap();
+}
+
+function triggerVisualSimpleExplosion(pos) {
+  playExplosionSound();
+  const flash = new THREE.PointLight(0xff3300, 15, 120);
+  flash.position.copy(pos);
+  scene.add(flash);
+  setTimeout(() => scene.remove(flash), 400);
+}
+
+function drawTacticalMap() {
+  mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+  mapCtx.fillStyle = '#02121e';
+  mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+  const toMapX = (x) => ((x + WORLD_WIDTH / 2) / WORLD_WIDTH) * mapCanvas.width;
+  const toMapY = (z) => mapCanvas.height - (z / WORLD_LENGTH) * mapCanvas.height;
+
+  let waterMapHeight = (WATER_END_Z / WORLD_LENGTH) * mapCanvas.height;
+  mapCtx.fillStyle = '#0f4c64';
+  mapCtx.fillRect(0, mapCanvas.height - waterMapHeight, mapCanvas.width, waterMapHeight);
+
+  mapCtx.fillStyle = '#00f0ff';
+  mapCtx.font = '10px Tahoma';
+  mapCtx.fillText("مجرى القناة المائي", 12, mapCanvas.height - 12);
+  mapCtx.fillText("عمق سيناء (أمام)", mapCanvas.width / 2 - 35, 18);
+
+  samSites.forEach(s => {
+    let sx = toMapX(s.x);
+    let sy = toMapY(s.z);
+    mapCtx.fillStyle = '#ff8800';
+    mapCtx.fillRect(sx - 2, sy - 2, 4, 4);
+  });
+
+  targetsData.forEach(t => {
+    if (!t.destroyed) {
+      let tx = toMapX(t.x);
+      let ty = toMapY(t.z);
+
+      mapCtx.beginPath();
+      mapCtx.arc(tx, ty, 6.5, 0, Math.PI * 2);
+      mapCtx.fillStyle = '#ff1e42';
+      mapCtx.fill();
+
+      mapCtx.strokeStyle = 'rgba(255, 30, 66, 0.45)';
+      mapCtx.lineWidth = 1.5;
+      mapCtx.beginPath();
+      mapCtx.arc(tx, ty, 10, 0, Math.PI * 2);
+      mapCtx.stroke();
+
+      mapCtx.fillStyle = '#ffd166';
+      mapCtx.font = '9px Tahoma';
+      mapCtx.fillText(t.name.split(' ')[1] || t.name, tx + 9, ty + 3);
+    }
+  });
+
+  let px = toMapX(jetGroup.position.x);
+  let py = toMapY(jetGroup.position.z);
+
+  mapCtx.save();
+  mapCtx.translate(px, py);
+  mapCtx.rotate(flight.heading);
+
+  mapCtx.fillStyle = '#00ff66';
+  mapCtx.shadowColor = '#00ff66';
+  mapCtx.shadowBlur = 8;
+  mapCtx.beginPath();
+  mapCtx.moveTo(0, -9);
+  mapCtx.lineTo(6, 6);
+  mapCtx.lineTo(0, 3);
+  mapCtx.lineTo(-6, 6);
+  mapCtx.closePath();
+  mapCtx.fill();
+
+  mapCtx.restore();
+}
+
+function triggerDefeat(reason) {
+  isGameOver = true;
+  if (jetGain) jetGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+  dialogTitle.innerText = "فشلت الغارة الجوية";
+  dialogTitle.style.color = "#ff3344";
+  dialogDesc.innerHTML = reason + "<br>يجب إعادة الإقلاع ومناورة الدفاعات لإتمام الضربة.";
+  dialogBtn.innerText = "إعادة المحاولة";
+  dialog.style.display = "block";
+}
+
+function triggerVictory() {
+  isVictory = true;
+  if (jetGain) jetGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+  dialogTitle.innerText = "تمت الضربة الجوية بنجاح ساحق! 🦅";
+  dialogTitle.style.color = "#00f0ff";
+  dialogDesc.innerHTML = "تم تدمير كافة قواعد وأهداف العدو الرئيسية في عمق سيناء بنجاح كامل.<br>جاري نقلك تلقائياً إلى معركة الدبابات...";
+  dialogBtn.innerText = "الانتقال إلى tank1.html";
+  dialog.style.display = "block";
+
+  setTimeout(() => {
+    window.location.href = "tank1.html";
+  }, 2200);
+}
+
+function handleDialogAction() {
+  if (isVictory) {
+    window.location.href = "tank1.html";
+  } else {
+    window.location.reload();
+  }
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

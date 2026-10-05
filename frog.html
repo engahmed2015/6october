@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>المرحلة الأولى: عملية الصمت (3D) - سد خط النابالم</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #010c17;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* عدسة نظارة الغوص */
+    #goggle-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      box-shadow: inset 0 0 100px rgba(0, 10, 20, 0.85);
+      border: 14px solid rgba(5, 15, 25, 0.6);
+      transition: box-shadow 0.3s ease;
+    }
+    .alarm-active {
+      box-shadow: inset 0 0 160px rgba(255, 0, 0, 0.85) !important;
+      border-color: rgba(90, 0, 0, 0.8) !important;
+    }
+
+    /* لوحة البيانات والقياسات التكتيكية */
+    #dashboard {
+      position: absolute;
+      top: 20px;
+      left: 30px;
+      right: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 15px;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+    }
+    .badge {
+      background: rgba(3, 18, 30, 0.85);
+      border: 1px solid #00b4d8;
+      padding: 8px 18px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+    #sabotage-alert {
+      color: #00f0ff;
+      background: rgba(0, 40, 60, 0.9);
+      border: 1px solid #00f0ff;
+      padding: 6px 16px;
+      border-radius: 4px;
+      display: none;
+      animation: pulse 0.5s infinite alternate;
+    }
+    #warning-msg {
+      color: #ff3333;
+      font-size: 17px;
+      display: none;
+      animation: blink 0.8s infinite alternate;
+    }
+    @keyframes blink { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+    @keyframes pulse { 0% { transform: scale(0.98); } 100% { transform: scale(1.02); } }
+
+    /* خريطة التقدم التكتيكية */
+    #progress-container {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 480px;
+      background: rgba(3, 18, 30, 0.92);
+      border: 1.5px solid #00b4d8;
+      border-radius: 8px;
+      padding: 10px 18px;
+      pointer-events: none;
+      box-shadow: 0 0 20px rgba(0, 180, 216, 0.35);
+    }
+    #progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: bold;
+      color: #90e0ef;
+      margin-bottom: 6px;
+    }
+    #track {
+      position: relative;
+      width: 100%;
+      height: 12px;
+      background: #061d30;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #track-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #0077b6, #00f0ff);
+      transition: width 0.1s linear;
+    }
+    .valve-pip {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      background: #e63946;
+      border-radius: 2px;
+    }
+
+    /* نافذة النهاية */
+    #dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(2, 14, 26, 0.96);
+      border: 2px solid #00b4d8;
+      padding: 30px 45px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      z-index: 20;
+    }
+    #dialog h2 { margin-bottom: 12px; font-size: 24px; color: #00f0ff; }
+    #dialog p { margin-bottom: 25px; font-size: 15px; color: #caf0f8; line-height: 1.7; }
+    .btn {
+      background: #0077b6;
+      border: none;
+      color: #fff;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 0 15px rgba(0, 119, 182, 0.5);
+    }
+    .btn:hover { background: #0096c7; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- تم استبدال ملف الصوت بـ Untitled.WAV -->
+<audio id="bg-music" loop preload="auto">
+  <source src="Untitled.WAV" type="audio/wav">
+  <source src="Untitled.wav" type="audio/wav">
+</audio>
+
+<div id="webgl-container"></div>
+<div id="goggle-hud"></div>
+
+<div id="dashboard">
+  <div class="badge">المحابس المعطلة: <span id="valves-status">0 / 3</span></div>
+  <div id="sabotage-alert">⚡ جاري تخريب وسد المحبس أوتوماتيكياً...</div>
+  <div id="warning-msg">⚠️ رصد ضوئي! اغتص للقاع فوراً! (<span id="alarm-timer">10</span> ث)</div>
+  <div class="badge">العمق: <span id="depth-txt">16</span> م</div>
+</div>
+
+<div id="progress-container">
+  <div id="progress-labels">
+    <span>نقطة الانطلاق (غرب)</span>
+    <span>خط أنابيب النابالم (شرق)</span>
+  </div>
+  <div id="track">
+    <div id="track-fill"></div>
+    <div class="valve-pip" style="left: 88%;"></div>
+    <div class="valve-pip" style="left: 92%;"></div>
+    <div class="valve-pip" style="left: 96%;"></div>
+  </div>
+</div>
+
+<div id="dialog">
+  <h2 id="dialog-title">تمت المهمة بنجاح</h2>
+  <p id="dialog-desc">تم سد وتخريب محابس أنابيب النابالم الثلاثة بنجاح وتأمين خط القناة بالكامل.</p>
+  <button class="btn" id="dialog-btn" onclick="handleDialogAction()">إعادة المحاولة</button>
+</div>
+
+<script>
+// --- محرك المؤثرات الصوتية (Web Audio API) ---
+let audioCtx = null;
+function initAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+// مؤثر صوتي لسقوط القنبلة
+function playBombFallSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+
+  const now = audioCtx.currentTime;
+  osc.frequency.setValueAtTime(650, now);
+  osc.frequency.exponentialRampToValueAtTime(120, now + 1.2);
+
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 1.2);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(now);
+  osc.stop(now + 1.2);
+}
+
+// مؤثر الانفجار تحت الماء
+function playExplosionSound() {
+  if (!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate * 1.5;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(250, audioCtx.currentTime);
+  filter.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 1.4);
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.4);
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  noise.start();
+}
+
+// مؤثر تعطيل وإغلاق الخط
+function playSabotageSuccessSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  [220, 440, 880, 1320].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, now + i * 0.1);
+
+    gain.gain.setValueAtTime(0.25, now + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now + i * 0.1);
+    osc.stop(now + i * 0.1 + 0.4);
+  });
+}
+
+// تشغيل الصوت الخلفي وتفعيل محرك الصوت مع أول تفاعل
+const bgMusic = document.getElementById('bg-music');
+function playAudio() {
+  initAudioContext();
+  if (bgMusic && bgMusic.paused) {
+    bgMusic.play().catch(() => {});
+  }
+}
+window.addEventListener('DOMContentLoaded', playAudio);
+window.addEventListener('keydown', playAudio, { once: true });
+window.addEventListener('click', playAudio, { once: true });
+window.addEventListener('gamepadconnected', playAudio, { once: true });
+
+// --- مشهد Three.js ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x021627);
+scene.fog = new THREE.FogExp2(0x021627, 0.009);
+
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.getElementById('webgl-container').appendChild(renderer.domElement);
+
+// --- الإضاءة وكشاف الغواص ---
+const ambientLight = new THREE.AmbientLight(0x0b3552, 1.2);
+scene.add(ambientLight);
+
+const diverSpotlight = new THREE.SpotLight(0xaef5ff, 6, 80, Math.PI / 3.5, 0.4, 1.1);
+scene.add(diverSpotlight);
+scene.add(diverSpotlight.target);
+
+// --- ثوابت البيئة ---
+const CANAL_LENGTH = 1200;
+const CANAL_WIDTH = 140;
+const WATER_SURFACE_Y = 22;
+const SEABED_Y = -12;
+const SAFE_DEPTH = -6;
+
+// --- بناء التضاريس والساتر الترابي ---
+function createCanalEnvironment() {
+  const terrainGeo = new THREE.PlaneGeometry(CANAL_WIDTH * 1.6, CANAL_LENGTH, 60, 200);
+  terrainGeo.rotateX(-Math.PI / 2);
+
+  const pos = terrainGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    let z = pos.getZ(i);
+
+    let distFromCenter = Math.abs(x);
+    let height = SEABED_Y;
+
+    if (distFromCenter > CANAL_WIDTH / 2) {
+      let slope = (distFromCenter - CANAL_WIDTH / 2) * 0.45;
+      height += slope;
+    }
+    height += Math.sin(x * 0.2) * Math.cos(z * 0.15) * 0.5;
+    pos.setY(i, height);
+  }
+  terrainGeo.computeVertexNormals();
+
+  const terrainMat = new THREE.MeshStandardMaterial({
+    color: 0x0e2a38,
+    roughness: 0.85,
+    metalness: 0.15,
+    flatShading: true
+  });
+  const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+  terrain.position.set(0, 0, CANAL_LENGTH / 2);
+  scene.add(terrain);
+
+  // كتل صخرية في القاع
+  const rockGeo = new THREE.DodecahedronGeometry(2.5, 1);
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x183849, roughness: 0.9 });
+  for (let i = 0; i < 40; i++) {
+    const rock = new THREE.Mesh(rockGeo, rockMat);
+    let rx = (Math.random() - 0.5) * (CANAL_WIDTH - 25);
+    let rz = Math.random() * (CANAL_LENGTH - 100) + 50;
+    let scale = Math.random() * 1.2 + 0.8;
+    rock.scale.set(scale, scale * 0.6, scale);
+    rock.position.set(rx, SEABED_Y + (scale * 0.6), rz);
+    scene.add(rock);
+  }
+
+  // سطح الماء
+  const waterGeo = new THREE.PlaneGeometry(CANAL_WIDTH * 1.5, CANAL_LENGTH);
+  waterGeo.rotateX(Math.PI / 2);
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x054a6b,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 0.2
+  });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.position.set(0, WATER_SURFACE_Y, CANAL_LENGTH / 2);
+  scene.add(water);
+}
+createCanalEnvironment();
+
+// --- دوريات الاستطلاع الضوئي وقوارب السطح ---
+const patrolBoats = [
+  { x: -30, z: 180, speedX: 0.16, speedZ: 0.05, lightAngle: 0, mesh: null, spotLight: null, lightMesh: null, radius: 10 },
+  { x: 30,  z: 380, speedX: -0.18, speedZ: 0.06, lightAngle: 1.5, mesh: null, spotLight: null, lightMesh: null, radius: 11 },
+  { x: -20, z: 620, speedX: 0.20, speedZ: -0.05, lightAngle: 3.0, mesh: null, spotLight: null, lightMesh: null, radius: 9 },
+  { x: 25,  z: 820, speedX: -0.17, speedZ: 0.07, lightAngle: 4.5, mesh: null, spotLight: null, lightMesh: null, radius: 10.5 },
+  { x: -15, z: 1000, speedX: 0.19, speedZ: -0.04, lightAngle: 2.2, mesh: null, spotLight: null, lightMesh: null, radius: 10 }
+];
+
+function buildSurfaceBoats() {
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x11161b, metalness: 0.8, roughness: 0.4, flatShading: true });
+  const hullGeo = new THREE.ConeGeometry(6, 22, 6);
+  hullGeo.rotateZ(Math.PI / 2);
+  hullGeo.scale(0.65, 0.45, 1.6);
+
+  patrolBoats.forEach(boat => {
+    const boatGroup = new THREE.Group();
+    const hull = new THREE.Mesh(hullGeo, hullMat);
+    hull.position.set(0, -1.8, 0);
+    boatGroup.add(hull);
+
+    const spot = new THREE.SpotLight(0xfff3b0, 4, 60, Math.PI / 7, 0.7, 1.2);
+    spot.position.set(0, -2, 0);
+    boatGroup.add(spot);
+    boatGroup.add(spot.target);
+    boat.spotLight = spot;
+
+    const coneGeo = new THREE.ConeGeometry(boat.radius, WATER_SURFACE_Y - SEABED_Y, 20, 1, true);
+    coneGeo.translate(0, -(WATER_SURFACE_Y - SEABED_Y) / 2, 0);
+    const coneMat = new THREE.MeshBasicMaterial({
+      color: 0xffffc4,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.position.set(0, -2, 0);
+    boatGroup.add(cone);
+    boat.lightMesh = cone;
+
+    boatGroup.position.set(boat.x, WATER_SURFACE_Y, boat.z);
+    scene.add(boatGroup);
+    boat.mesh = boatGroup;
+  });
+
+  for (let i = 0; i < 6; i++) {
+    const staticBoat = new THREE.Mesh(hullGeo, hullMat);
+    let sx = (i % 2 === 0 ? 1 : -1) * (CANAL_WIDTH * 0.38);
+    let sz = 140 + i * 160;
+    staticBoat.position.set(sx, WATER_SURFACE_Y - 1.8, sz);
+    scene.add(staticBoat);
+  }
+}
+buildSurfaceBoats();
+
+// --- نهاية اللعبة: أنابيب النابالم ---
+const valvesData = [
+  { z: CANAL_LENGTH - 80, x: -22, sabotaged: false, progress: 0, group: null, wheelMesh: null, light: null },
+  { z: CANAL_LENGTH - 50, x: 0,   sabotaged: false, progress: 0, group: null, wheelMesh: null, light: null },
+  { z: CANAL_LENGTH - 20, x: 22,  sabotaged: false, progress: 0, group: null, wheelMesh: null, light: null }
+];
+
+function buildNapalmPipesAndValves() {
+  const pipeMat = new THREE.MeshStandardMaterial({
+    color: 0x1f2830,
+    metalness: 0.85,
+    roughness: 0.25
+  });
+
+  valvesData.forEach((v) => {
+    const group = new THREE.Group();
+
+    const pipeGeo = new THREE.CylinderGeometry(2.8, 2.8, 24, 20);
+    const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+    pipe.rotation.x = Math.PI / 4;
+    pipe.position.set(0, SEABED_Y + 7, 0);
+    group.add(pipe);
+
+    const wheelGeo = new THREE.TorusGeometry(2.2, 0.45, 12, 24);
+    const wheelMat = new THREE.MeshStandardMaterial({
+      color: 0xff0044,
+      emissive: 0xff0033,
+      emissiveIntensity: 0.9,
+      metalness: 0.5,
+      roughness: 0.2
+    });
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(0, SEABED_Y + 11.5, 3.5);
+    group.add(wheel);
+
+    const hubGeo = new THREE.CylinderGeometry(0.6, 0.6, 2, 12);
+    hubGeo.rotateX(Math.PI / 2);
+    const hub = new THREE.Mesh(hubGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd }));
+    hub.position.copy(wheel.position);
+    group.add(hub);
+
+    const valveLight = new THREE.PointLight(0xff0044, 3, 18);
+    valveLight.position.copy(wheel.position);
+    group.add(valveLight);
+
+    group.position.set(v.x, 0, v.z);
+    scene.add(group);
+
+    v.group = group;
+    v.wheelMesh = wheel;
+    v.light = valveLight;
+  });
+}
+buildNapalmPipesAndValves();
+
+// --- نظام فقاعات الماء ---
+const bubbleCount = 400;
+const bubbleGeo = new THREE.BufferGeometry();
+const bubblePos = new Float32Array(bubbleCount * 3);
+for (let i = 0; i < bubbleCount * 3; i += 3) {
+  bubblePos[i] = (Math.random() - 0.5) * CANAL_WIDTH;
+  bubblePos[i + 1] = THREE.MathUtils.lerp(SEABED_Y, WATER_SURFACE_Y, Math.random());
+  bubblePos[i + 2] = Math.random() * CANAL_LENGTH;
+}
+bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePos, 3));
+const bubbleMat = new THREE.PointsMaterial({ color: 0x90e0ef, size: 0.4, transparent: true, opacity: 0.65 });
+const bubbleParticles = new THREE.Points(bubbleGeo, bubbleMat);
+scene.add(bubbleParticles);
+
+// --- القنابل الساقطة ---
+let depthCharges = [];
+function spawnDepthCharge() {
+  if (player.z > CANAL_LENGTH - 100) return;
+
+  const bombGroup = new THREE.Group();
+  const bombGeo = new THREE.CylinderGeometry(0.8, 0.8, 2.2, 12);
+  const bombMat = new THREE.MeshStandardMaterial({
+    color: 0xff4500,
+    emissive: 0xff3300,
+    emissiveIntensity: 0.85,
+    metalness: 0.5,
+    roughness: 0.2
+  });
+  const bombMesh = new THREE.Mesh(bombGeo, bombMat);
+  bombGroup.add(bombMesh);
+
+  const glowGeo = new THREE.SphereGeometry(1.6, 12, 12);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.35, wireframe: true });
+  bombGroup.add(new THREE.Mesh(glowGeo, glowMat));
+
+  const pointLight = new THREE.PointLight(0xff5500, 1.5, 12);
+  bombGroup.add(pointLight);
+
+  let bx = player.x + (Math.random() - 0.5) * 45;
+  let bz = player.z + Math.random() * 45 + 15;
+  bombGroup.position.set(bx, WATER_SURFACE_Y - 2, bz);
+  scene.add(bombGroup);
+
+  depthCharges.push({
+    mesh: bombGroup,
+    speedY: 0.22 + Math.random() * 0.12,
+    rotSpeed: (Math.random() - 0.5) * 0.05
+  });
+
+  // تشغيل مؤثر صفير سقوط القنبلة
+  playBombFallSound();
+}
+
+// --- حالة الغواص والتحكم ---
+let player = {
+  x: 0,
+  y: 0,
+  z: 30,
+  speedForward: 0.52,
+  speedBackward: 0.35,
+  speedLateral: 0.45,
+  speedVertical: 0.38
+};
+
+const keys = {};
+window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+// قراءة مدخلات دراع التحكم USB Gamepad
+function getGamepadState() {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = null;
+  for (let i = 0; i < gamepads.length; i++) {
+    if (gamepads[i]) { gp = gamepads[i]; break; }
+  }
+
+  const state = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    actionX: false
+  };
+
+  if (!gp) return state;
+
+  const DEADZONE = 0.25;
+  const axisX = gp.axes[0] || 0;
+  const axisY = gp.axes[1] || 0;
+
+  // المحاور أو أزرار الاتجاهات (D-Pad: 12=Up, 13=Down, 14=Left, 15=Right)
+  if (axisY < -DEADZONE || (gp.buttons[12] && gp.buttons[12].pressed)) state.up = true;
+  if (axisY > DEADZONE || (gp.buttons[13] && gp.buttons[13].pressed)) state.down = true;
+  if (axisX < -DEADZONE || (gp.buttons[14] && gp.buttons[14].pressed)) state.left = true;
+  if (axisX > DEADZONE || (gp.buttons[15] && gp.buttons[15].pressed)) state.right = true;
+
+  // زر X (عادة الزر index 0 في Standard Gamepad) أو الزر index 2 حسب موديل اليد
+  if ((gp.buttons[0] && gp.buttons[0].pressed) || (gp.buttons[2] && gp.buttons[2].pressed)) {
+    state.actionX = true;
+  }
+
+  return state;
+}
+
+let isGameOver = false;
+let isVictory = false;
+let alertTimer = 0;
+let isAlertActive = false;
+
+// ربط عناصر الواجهة
+const goggleHud = document.getElementById('goggle-hud');
+const warningMsg = document.getElementById('warning-msg');
+const alarmTimerTxt = document.getElementById('alarm-timer');
+const depthTxt = document.getElementById('depth-txt');
+const trackFill = document.getElementById('track-fill');
+const valvesStatusTxt = document.getElementById('valves-status');
+const sabotageAlert = document.getElementById('sabotage-alert');
+const dialog = document.getElementById('dialog');
+const dialogTitle = document.getElementById('dialog-title');
+const dialogDesc = document.getElementById('dialog-desc');
+const dialogBtn = document.getElementById('dialog-btn');
+
+let frameCounter = 0;
+
+// --- دورة التحديث والفيزياء ---
+function update() {
+  if (isGameOver || isVictory) return;
+  frameCounter++;
+
+  const gp = getGamepadState();
+
+  // دمج أوامر الكيبورد والـ USB Joystick
+  const moveUp = keys['ArrowUp'] || gp.up;
+  const moveDown = keys['ArrowDown'] || gp.down;
+  const moveLeft = keys['ArrowLeft'] || gp.left;
+  const moveRight = keys['ArrowRight'] || gp.right;
+  const isSpacePressed = keys['Space'] || gp.actionX;
+
+  // 1. نظام الحركة (صعود بالـ X/المسطرة + فوق، وهبوط بالـ X/المسطرة + تحت)
+  if (isSpacePressed && moveUp) {
+    player.y = Math.min(WATER_SURFACE_Y - 2.5, player.y + player.speedVertical);
+  } else if (isSpacePressed && moveDown) {
+    player.y = Math.max(SEABED_Y + 1.2, player.y - player.speedVertical);
+  } else if (moveUp) {
+    player.z += player.speedForward;
+  } else if (moveDown) {
+    player.z = Math.max(20, player.z - player.speedBackward);
+  }
+
+  // يمين ويسار
+  if (moveLeft) {
+    player.x = Math.min(CANAL_WIDTH / 2 - 5, player.x + player.speedLateral);
+  }
+  if (moveRight) {
+    player.x = Math.max(-CANAL_WIDTH / 2 + 5, player.x - player.speedLateral);
+  }
+
+  // حركة الكاميرا وتمايل الماء
+  let waterSwayX = Math.sin(frameCounter * 0.03) * 0.15;
+  let waterSwayY = Math.cos(frameCounter * 0.04) * 0.12;
+  let waterRoll  = Math.sin(frameCounter * 0.02) * 0.015;
+
+  camera.position.set(player.x + waterSwayX, player.y + waterSwayY, player.z);
+  camera.rotation.set(0, Math.PI, waterRoll);
+
+  diverSpotlight.position.set(player.x, player.y, player.z);
+  diverSpotlight.target.position.set(player.x, player.y, player.z + 25);
+
+  let realDepth = Math.round(WATER_SURFACE_Y - player.y);
+  depthTxt.innerText = realDepth;
+
+  let progressRatio = Math.min(1, player.z / (CANAL_LENGTH - 30));
+  trackFill.style.width = (progressRatio * 100) + '%';
+
+  // 2. تحديث الدوريات الضوئية
+  let underSearchlight = false;
+  patrolBoats.forEach(boat => {
+    boat.x += boat.speedX;
+    boat.z += boat.speedZ;
+    boat.lightAngle += 0.025;
+
+    if (Math.abs(boat.x) > CANAL_WIDTH / 2 - 14) boat.speedX *= -1;
+    if (boat.z < 100 || boat.z > CANAL_LENGTH - 100) boat.speedZ *= -1;
+
+    boat.mesh.position.set(boat.x, WATER_SURFACE_Y, boat.z);
+
+    let lightOffsetX = Math.sin(boat.lightAngle) * 6;
+    let lightOffsetZ = Math.cos(boat.lightAngle) * 6;
+    boat.spotLight.target.position.set(boat.x + lightOffsetX, SEABED_Y, boat.z + lightOffsetZ);
+    boat.lightMesh.rotation.z = Math.sin(boat.lightAngle) * 0.12;
+
+    let currentSpotX = boat.x + lightOffsetX;
+    let currentSpotZ = boat.z + lightOffsetZ;
+    let dist2D = Math.hypot(player.x - currentSpotX, player.z - currentSpotZ);
+
+    if (dist2D < (boat.radius * 0.85) && player.y > SAFE_DEPTH) {
+      underSearchlight = true;
+    }
+  });
+
+  if (underSearchlight && !isAlertActive) {
+    isAlertActive = true;
+    alertTimer = 10 * 60;
+  }
+
+  if (isAlertActive) {
+    goggleHud.classList.add('alarm-active');
+    warningMsg.style.display = 'block';
+    alarmTimerTxt.innerText = Math.ceil(alertTimer / 60);
+
+    if (player.y > SAFE_DEPTH) {
+      playExplosionSound();
+      triggerDefeat("رصدت كشافات زوارق العدو خيالك بسبب عدم الغوص في القاع!");
+      return;
+    }
+
+    alertTimer--;
+    if (alertTimer <= 0) {
+      isAlertActive = false;
+      goggleHud.classList.remove('alarm-active');
+      warningMsg.style.display = 'none';
+    }
+  }
+
+  // 3. القنابل الساقطة
+  if (frameCounter % 90 === 0) {
+    spawnDepthCharge();
+  }
+
+  for (let i = depthCharges.length - 1; i >= 0; i--) {
+    let dc = depthCharges[i];
+    dc.mesh.position.y -= dc.speedY;
+    dc.mesh.rotation.y += dc.rotSpeed;
+
+    let dist3D = dc.mesh.position.distanceTo(new THREE.Vector3(player.x, player.y, player.z));
+    if (dist3D < 3.2) {
+      playExplosionSound();
+      triggerDefeat("انفجرت قذيفة أعماق بالقرب منك!");
+      return;
+    }
+
+    if (dc.mesh.position.y <= SEABED_Y + 0.5) {
+      scene.remove(dc.mesh);
+      depthCharges.splice(i, 1);
+    }
+  }
+
+  // 4. التخريب الأوتوماتيكي عند الاقتراب من المحابس الثلاثة
+  let sabotagedCount = 0;
+  let currentlySabotaging = false;
+
+  valvesData.forEach(v => {
+    let valveWorldPos = new THREE.Vector3();
+    v.wheelMesh.getWorldPosition(valveWorldPos);
+
+    let distToValve = playerDistTo(player.x, player.y, player.z, valveWorldPos.x, valveWorldPos.y, valveWorldPos.z);
+
+    if (distToValve < 8.5 && !v.sabotaged) {
+      currentlySabotaging = true;
+      v.progress += 1.2;
+      v.wheelMesh.rotation.z += 0.25;
+
+      if (v.progress >= 100) {
+        v.sabotaged = true;
+        v.wheelMesh.material.color.setHex(0x00f0ff);
+        v.wheelMesh.material.emissive.setHex(0x00d4ff);
+        v.light.color.setHex(0x00f0ff);
+        // تشغيل صوت تعطيل وسد الخط
+        playSabotageSuccessSound();
+      }
+    }
+
+    if (v.sabotaged) {
+      sabotagedCount++;
+    }
+  });
+
+  sabotageAlert.style.display = currentlySabotaging ? 'block' : 'none';
+  valvesStatusTxt.innerText = `${sabotagedCount} / 3`;
+
+  if (sabotagedCount === 3 && !isVictory) {
+    triggerVictory();
+  }
+}
+
+function playerDistTo(x1, y1, z1, x2, y2, z2) {
+  return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2);
+}
+
+// --- شاشات النتائج ---
+function triggerDefeat(reason) {
+  isGameOver = true;
+  dialogTitle.innerText = "فشلت العملية الاستطلاعية";
+  dialogTitle.style.color = "#ff3333";
+  dialogDesc.innerHTML = reason + "<br>يجب إعادة التسلل وإتمام سد الفتحات قبل ساعة الصفر.";
+  dialogBtn.innerText = "إعادة المحاولة";
+  dialog.style.display = "block";
+}
+
+function triggerVictory() {
+  isVictory = true;
+  dialogTitle.innerText = "تم إحكام السد والتخريب بنجاح! ✌️";
+  dialogTitle.style.color = "#00f0ff";
+  dialogDesc.innerHTML = "تم تخريب وضخ الخرسانة في محابس النابالم الثلاثة بنجاح تام.<br>مياه القناة آمنة الآن لتقدم لنشات وقوارب قوات العبور.";
+  dialogBtn.innerText = "موافق (OK)";
+  dialog.style.display = "block";
+}
+
+function handleDialogAction() {
+  if (isVictory) {
+    window.location.href = "plan.html";
+  } else {
+    player.x = 0;
+    player.y = 0;
+    player.z = 30;
+    depthCharges.forEach(dc => scene.remove(dc.mesh));
+    depthCharges = [];
+    valvesData.forEach(v => {
+      v.sabotaged = false;
+      v.progress = 0;
+      v.wheelMesh.material.color.setHex(0xff0044);
+      v.wheelMesh.material.emissive.setHex(0xff0033);
+      v.light.color.setHex(0xff0044);
+    });
+    isAlertActive = false;
+    goggleHud.classList.remove('alarm-active');
+    warningMsg.style.display = 'none';
+    sabotageAlert.style.display = 'none';
+    dialog.style.display = 'none';
+    isGameOver = false;
+  }
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

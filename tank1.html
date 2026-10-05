@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>المرحلة الرابعة: شريان النصر - ملحمة العبور وتجريف خط بارليف</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #020c18;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px 30px;
+    }
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 15px;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+    }
+    .badge {
+      background: rgba(3, 18, 30, 0.85);
+      border: 1px solid #00f0ff;
+      padding: 8px 18px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+    #warning-box {
+      color: #ff3344;
+      font-size: 16px;
+      display: none;
+      animation: blink 0.5s infinite alternate;
+    }
+    @keyframes blink { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+
+    #sand-progress-box {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 440px;
+      background: rgba(3, 18, 30, 0.92);
+      border: 1.5px solid #ffd166;
+      border-radius: 8px;
+      padding: 12px 20px;
+      display: none;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(255, 209, 102, 0.4);
+    }
+    #sand-progress-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #ffd166;
+      margin-bottom: 8px;
+    }
+    #sand-bar {
+      width: 100%;
+      height: 14px;
+      background: #2b1f13;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #a87948;
+    }
+    #sand-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00b4d8, #00f0ff);
+      transition: width 0.1s linear;
+    }
+
+    #progress-container {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 520px;
+      background: rgba(3, 18, 30, 0.92);
+      border: 1.5px solid #00b4d8;
+      border-radius: 8px;
+      padding: 10px 18px;
+      pointer-events: none;
+      box-shadow: 0 0 20px rgba(0, 180, 216, 0.35);
+    }
+    #progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: bold;
+      color: #90e0ef;
+      margin-bottom: 6px;
+    }
+    #track {
+      position: relative;
+      width: 100%;
+      height: 12px;
+      background: #061d30;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #track-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #0077b6, #00f0ff);
+      transition: width 0.1s linear;
+    }
+
+    #action-hint {
+      position: absolute;
+      bottom: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(4, 20, 34, 0.9);
+      border: 1px solid #ffd166;
+      color: #ffd166;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px 24px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    #dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(2, 14, 26, 0.96);
+      border: 2px solid #00f0ff;
+      padding: 30px 45px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      z-index: 20;
+    }
+    #dialog h2 { margin-bottom: 12px; font-size: 24px; color: #00f0ff; }
+    #dialog p { margin-bottom: 25px; font-size: 15px; color: #caf0f8; line-height: 1.7; }
+    .btn {
+      background: #0077b6;
+      border: none;
+      color: #fff;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 0 15px rgba(0, 119, 182, 0.5);
+    }
+    .btn:hover { background: #0096c7; }
+
+    /* مشغل الفيديو المنبثق في نهاية المهمة */
+    #endVideoModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .video-wrapper {
+      width: 100%;
+      max-width: 900px;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      outline: none;
+    }
+
+    .skip-btn {
+      margin-top: 18px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #e5e7eb;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 10px 30px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .skip-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #00f0ff;
+      color: #00f0ff;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- مشغل الموسيقى الخلفية mp3.mp3 -->
+<audio id="bg-music" loop preload="auto">
+  <source src="mp3.mp3" type="audio/mpeg">
+  <source src="mp3" type="audio/mpeg">
+</audio>
+
+<!-- نافذة الفيديو الختامي tank.mp4 -->
+<div id="endVideoModal">
+  <div class="video-wrapper">
+    <video id="tankVideo" preload="auto">
+      <source src="tank.mp4" type="video/mp4">
+      متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+  </div>
+  <button class="skip-btn" onclick="goToTank2()">تخطي الفيديو والانتقال إلى tank2.html ⏩</button>
+</div>
+
+<div id="webgl-container"></div>
+
+<div id="hud-overlay">
+  <div class="hud-header">
+    <div class="badge">المهمة: <span id="mission-status">اقتحام القناة والوصول للساتر الترابي</span></div>
+    <div id="warning-box">⚠️ قذائف مدفعية سريعة تسقط في مسار العبور! ناور فوراً!</div>
+    <div class="badge">سرعة القارب: <span id="boat-speed-txt">0</span> كم/س</div>
+  </div>
+
+  <div id="sand-progress-box">
+    <div id="sand-progress-title">⚡ جاري تجريف الساتر الترابي وفتح الممر: <span id="sand-percent">0%</span></div>
+    <div id="sand-bar"><div id="sand-fill"></div></div>
+  </div>
+
+  <div id="action-hint">[ ↑ أو ذراع USB ] للتقدم | [ → / ← ] للمناورة | [ Space أو X بالذراع ] لتشغيل مضخات المياه</div>
+
+  <div id="progress-container">
+    <div id="progress-labels">
+      <span>الضفة الغربية (نقطة الانطلاق)</span>
+      <span>الضفة الشرقية (الساتر الترابي - خط بارليف)</span>
+    </div>
+    <div id="track"><div id="track-fill"></div></div>
+  </div>
+</div>
+
+<div id="dialog">
+  <h2 id="dialog-title">تم فتح الثغرة بنجاح ساحق! ✌️</h2>
+  <p id="dialog-desc">تم تجريف رمال خط بارليف الشاهق بالكامل بمضخات المياه في زمن قياسي وفتح الممر لنصب الكباري وعبور الدبابات.</p>
+  <button class="btn" id="dialog-btn" onclick="handleDialogAction()">إعادة المحاولة</button>
+</div>
+
+<script>
+// --- تشغيل موسيقى mp3.mp3 بعد التحميل ---
+const bgMusic = document.getElementById('bg-music');
+const endVideoModal = document.getElementById('endVideoModal');
+const tankVideo = document.getElementById('tankVideo');
+
+function playAudio() {
+  initAudio();
+  if (bgMusic && bgMusic.paused) {
+    bgMusic.play().catch(e => console.log("Audio play allowed on user interaction:", e));
+  }
+}
+window.addEventListener('DOMContentLoaded', playAudio);
+window.addEventListener('keydown', playAudio, { once: true });
+window.addEventListener('click', playAudio, { once: true });
+window.addEventListener('gamepadconnected', playAudio, { once: true });
+
+// --- نظام الصوت المدمج الإجرائي (Web Audio API) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// صوت مضخة المياه وتجريف الرمال
+function playWaterPumpSound() {
+  initAudio();
+  if (!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate * 0.15;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * 0.35;
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(850, audioCtx.currentTime);
+  noise.connect(filter);
+  filter.connect(audioCtx.destination);
+  noise.start();
+}
+
+// صفير سقوط القذيفة في الهواء قبل الارتطام
+function playIncomingShellWhistle() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+
+  const now = audioCtx.currentTime;
+  osc.frequency.setValueAtTime(900, now);
+  osc.frequency.exponentialRampToValueAtTime(180, now + 1.1);
+
+  gain.gain.setValueAtTime(0.18, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 1.1);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 1.1);
+}
+
+// مؤثر صوتي لارتطام القنبلة وسقوطها في مياه القناة
+function playBombSplashSound() {
+  initAudio();
+  if (!audioCtx) return;
+
+  const now = audioCtx.currentTime;
+
+  // 1. ضربة الارتطام بالماء المكتومة العميقة (Thud)
+  const osc = audioCtx.createOscillator();
+  const oscGain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(140, now);
+  osc.frequency.exponentialRampToValueAtTime(35, now + 0.5);
+
+  oscGain.gain.setValueAtTime(0.8, now);
+  oscGain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.5);
+
+  // 2. فوران وتطاير مياه القناة والنافورة (Water Splash & Spray)
+  const bufferSize = audioCtx.sampleRate * 1.2;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.35));
+  }
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(450, now);
+  filter.frequency.linearRampToValueAtTime(80, now + 1.2);
+
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(1.0, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(audioCtx.destination);
+  noise.start(now);
+}
+
+// --- مشهد Three.js ثلاثي الأبعاد ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x355c7d);
+scene.fog = new THREE.FogExp2(0x355c7d, 0.00035);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 9000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.getElementById('webgl-container').appendChild(renderer.domElement);
+
+const sunLight = new THREE.DirectionalLight(0xfff3db, 2.8);
+sunLight.position.set(300, 900, 400);
+scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x607d9b, 1.3));
+
+// --- مسرح عمليات العبور ---
+const CANAL_WIDTH = 600;
+const CROSSING_LENGTH = 3200;
+let sandBankMesh = null;
+let initialSandHeight = 95;
+let sandClearedPercent = 0;
+
+function createCanalAndBarLevWall() {
+  const waterGeo = new THREE.PlaneGeometry(CANAL_WIDTH * 1.5, CROSSING_LENGTH + 800, 40, 100);
+  waterGeo.rotateX(-Math.PI / 2);
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x0f4c5c,
+    roughness: 0.15,
+    metalness: 0.5,
+    flatShading: true
+  });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.position.set(0, 0, CROSSING_LENGTH / 2);
+  scene.add(water);
+
+  const westBankGeo = new THREE.BoxGeometry(CANAL_WIDTH * 1.6, 14, 220);
+  const westBankMat = new THREE.MeshStandardMaterial({ color: 0x4a5240, roughness: 0.9 });
+  const westBank = new THREE.Mesh(westBankGeo, westBankMat);
+  westBank.position.set(0, 7, -90);
+  scene.add(westBank);
+
+  const wallWidth = CANAL_WIDTH * 1.6;
+  const wallDepth = 220;
+
+  const sandGeo = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    -wallWidth / 2, 0, CROSSING_LENGTH + 30,
+     wallWidth / 2, 0, CROSSING_LENGTH + 30,
+     wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+
+    -wallWidth / 2, 0, CROSSING_LENGTH + 30,
+     wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+    -wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+
+    -wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+     wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+     wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140 + wallDepth,
+
+    -wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140,
+     wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140 + wallDepth,
+    -wallWidth / 2, initialSandHeight, CROSSING_LENGTH + 140 + wallDepth,
+  ]);
+
+  sandGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  sandGeo.computeVertexNormals();
+
+  const sandMat = new THREE.MeshStandardMaterial({
+    color: 0xcaa066,
+    roughness: 0.95,
+    metalness: 0.05,
+    flatShading: true
+  });
+  sandBankMesh = new THREE.Mesh(sandGeo, sandMat);
+  scene.add(sandBankMesh);
+
+  const bunkerMat = new THREE.MeshStandardMaterial({ color: 0x2e353b, roughness: 0.85 });
+  const fortGroup = new THREE.Group();
+
+  for (let i = -3; i <= 3; i++) {
+    const bunker = new THREE.Mesh(new THREE.BoxGeometry(55, 16, 40), bunkerMat);
+    bunker.position.set(i * 95, initialSandHeight + 8, CROSSING_LENGTH + 160);
+    fortGroup.add(bunker);
+
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 14, 8), new THREE.MeshBasicMaterial({ color: 0xaaaaaa }));
+    pole.position.set(i * 95, initialSandHeight + 22, CROSSING_LENGTH + 160);
+    fortGroup.add(pole);
+
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.5), new THREE.MeshBasicMaterial({ color: 0x0044aa, side: THREE.DoubleSide }));
+    flag.position.set(i * 95 + 3, initialSandHeight + 26, CROSSING_LENGTH + 160);
+    fortGroup.add(flag);
+  }
+
+  scene.add(fortGroup);
+  sandBankMesh.forts = fortGroup;
+
+  const allyGeo = new THREE.BoxGeometry(8, 2, 16);
+  const allyMat = new THREE.MeshStandardMaterial({ color: 0x2b3829 });
+  for (let i = 0; i < 8; i++) {
+    const ally = new THREE.Mesh(allyGeo, allyMat);
+    let xOffset = (i % 2 === 0 ? 1 : -1) * (70 + Math.random() * 140);
+    let zOffset = 150 + i * 360;
+    ally.position.set(xOffset, 1, zOffset);
+    scene.add(ally);
+  }
+}
+createCanalAndBarLevWall();
+
+// --- مجسم قارب الاقتحام المصري المطاطي ---
+const boatGroup = new THREE.Group();
+
+function buildAssaultBoat() {
+  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x223522, roughness: 0.6 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d473b, roughness: 0.8 });
+  const pumpMat = new THREE.MeshStandardMaterial({ color: 0xd90429, metalness: 0.7, roughness: 0.3 });
+
+  const rimGeo = new THREE.TorusGeometry(8, 2.4, 12, 28);
+  rimGeo.rotateX(Math.PI / 2);
+  rimGeo.scale(0.7, 1, 1.45);
+  const rim = new THREE.Mesh(rimGeo, rubberMat);
+  rim.position.y = 1.3;
+  boatGroup.add(rim);
+
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.8, 19), floorMat);
+  floor.position.y = 0.6;
+  boatGroup.add(floor);
+
+  const pump1 = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 6, 12), pumpMat);
+  pump1.rotation.x = Math.PI / 2;
+  pump1.position.set(-2.5, 2.4, 2);
+  boatGroup.add(pump1);
+
+  const pump2 = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 6, 12), pumpMat);
+  pump2.rotation.x = Math.PI / 2;
+  pump2.position.set(2.5, 2.4, 2);
+  boatGroup.add(pump2);
+
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.0, 5.5, 8), pumpMat);
+  nozzle.rotation.x = -Math.PI / 3.2;
+  nozzle.position.set(0, 3.4, 9);
+  boatGroup.add(nozzle);
+  boatGroup.nozzle = nozzle;
+
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0xdddddd }));
+  pole.position.set(-3.4, 4.5, -8);
+  boatGroup.add(pole);
+
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.2), new THREE.MeshBasicMaterial({ color: 0xd90429, side: THREE.DoubleSide }));
+  flag.position.set(-1.6, 7.2, -8);
+  boatGroup.add(flag);
+
+  boatGroup.position.set(0, 0, 40);
+  scene.add(boatGroup);
+}
+buildAssaultBoat();
+
+// --- نظام تدفق تيار الماء لتجريف الرمال ---
+const waterJetGroup = new THREE.Group();
+const waterStreamCount = 300;
+const waterStreamGeo = new THREE.BufferGeometry();
+const waterPositions = new Float32Array(waterStreamCount * 3);
+const waterVels = [];
+
+for (let i = 0; i < waterStreamCount; i++) {
+  waterPositions[i * 3] = 0;
+  waterPositions[i * 3 + 1] = 0;
+  waterPositions[i * 3 + 2] = 0;
+  waterVels.push(new THREE.Vector3());
+}
+waterStreamGeo.setAttribute('position', new THREE.BufferAttribute(waterPositions, 3));
+const waterStreamMat = new THREE.PointsMaterial({
+  color: 0xa8f2ff,
+  size: 2.2,
+  transparent: true,
+  opacity: 0.85
+});
+const waterJetParticles = new THREE.Points(waterStreamGeo, waterStreamMat);
+waterJetGroup.add(waterJetParticles);
+scene.add(waterJetGroup);
+waterJetGroup.visible = false;
+
+// --- قذائف المدفعية فائقة السرعة ---
+let fallingArtillery = [];
+let waterGeysers = [];
+
+function spawnIncomingArtillery() {
+  if (boatGroup.position.z > CROSSING_LENGTH - 80) return;
+
+  const targetX = boatGroup.position.x + (Math.random() - 0.5) * 120;
+  const targetZ = boatGroup.position.z + Math.random() * 120 + 35;
+
+  const alertRing = new THREE.Mesh(
+    new THREE.RingGeometry(10, 14, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0xff2233,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    })
+  );
+  alertRing.rotateX(-Math.PI / 2);
+  alertRing.position.set(targetX, 0.3, targetZ);
+  scene.add(alertRing);
+
+  const shell = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 1.3, 6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xff4500, emissiveIntensity: 0.9 })
+  );
+  shell.position.set(targetX, 360, targetZ);
+  scene.add(shell);
+
+  fallingArtillery.push({
+    mesh: shell,
+    ring: alertRing,
+    vy: -8.8 - Math.random() * 2.5,
+    targetX: targetX,
+    targetZ: targetZ
+  });
+
+  // تشغيل صوت صفير سقوط القنبلة
+  playIncomingShellWhistle();
+}
+
+function createWaterGeyser(x, z) {
+  playBombSplashSound();
+
+  const geyserGroup = new THREE.Group();
+  const column = new THREE.Mesh(
+    new THREE.CylinderGeometry(5, 12, 55, 12),
+    new THREE.MeshStandardMaterial({
+      color: 0xdef7ff,
+      transparent: true,
+      opacity: 0.85,
+      roughness: 0.1
+    })
+  );
+  column.position.y = 27;
+  geyserGroup.add(column);
+
+  geyserGroup.position.set(x, 0, z);
+  scene.add(geyserGroup);
+
+  waterGeysers.push({
+    group: geyserGroup,
+    life: 30
+  });
+}
+
+// --- حالة القارب والتحكم ---
+let boat = {
+  speed: 0,
+  maxSpeed: 3.6,
+  accel: 0.06,
+  lateralSpeed: 2.4,
+  isAtSandBank: false
+};
+
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  initAudio();
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('gamepadconnected', () => { initAudio(); });
+
+// قراءة مدخلات USB Joystick
+function getGamepadState() {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let gp = null;
+  for (let i = 0; i < gamepads.length; i++) {
+    if (gamepads[i]) { gp = gamepads[i]; break; }
+  }
+
+  const state = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    actionX: false
+  };
+
+  if (!gp) return state;
+
+  const DEADZONE = 0.25;
+  const axisX = gp.axes[0] || 0;
+  const axisY = gp.axes[1] || 0;
+
+  // المحاور أو أزرار الاتجاهات (D-Pad)
+  if (axisY < -DEADZONE || (gp.buttons[12] && gp.buttons[12].pressed)) state.up = true;
+  if (axisY > DEADZONE || (gp.buttons[13] && gp.buttons[13].pressed)) state.down = true;
+  if (axisX < -DEADZONE || (gp.buttons[14] && gp.buttons[14].pressed)) state.left = true;
+  if (axisX > DEADZONE || (gp.buttons[15] && gp.buttons[15].pressed)) state.right = true;
+
+  // زر X (الزر رقم 0 أو 2) ليعمل مثل زر Space
+  if ((gp.buttons[0] && gp.buttons[0].pressed) || (gp.buttons[2] && gp.buttons[2].pressed)) {
+    state.actionX = true;
+  }
+
+  return state;
+}
+
+let isGameOver = false;
+let isVictory = false;
+
+const missionStatusTxt = document.getElementById('mission-status');
+const warningBox = document.getElementById('warning-box');
+const boatSpeedTxt = document.getElementById('boat-speed-txt');
+const sandProgressBox = document.getElementById('sand-progress-box');
+const sandPercentTxt = document.getElementById('sand-percent');
+const sandFill = document.getElementById('sand-fill');
+const trackFill = document.getElementById('track-fill');
+const actionHint = document.getElementById('action-hint');
+const dialog = document.getElementById('dialog');
+const dialogTitle = document.getElementById('dialog-title');
+const dialogDesc = document.getElementById('dialog-desc');
+const dialogBtn = document.getElementById('dialog-btn');
+
+let frameCounter = 0;
+
+// --- دورة التحديث والفيزياء ---
+function update() {
+  if (isGameOver || isVictory) return;
+  frameCounter++;
+
+  const gp = getGamepadState();
+
+  const isUp = keys['ArrowUp'] || gp.up;
+  const isDown = keys['ArrowDown'] || gp.down;
+  const isLeft = keys['ArrowLeft'] || gp.left;
+  const isRight = keys['ArrowRight'] || gp.right;
+  const isActionTriggered = keys['Space'] || gp.actionX;
+
+  // 1. حركة وإبحار القارب
+  if (!boat.isAtSandBank) {
+    if (isUp) {
+      boat.speed = Math.min(boat.maxSpeed, boat.speed + boat.accel);
+    } else if (isDown) {
+      boat.speed = Math.max(-1.0, boat.speed - boat.accel * 1.5);
+    } else {
+      boat.speed *= 0.985;
+    }
+
+    if (isRight) {
+      boatGroup.position.x = Math.max(-CANAL_WIDTH * 0.42, boatGroup.position.x - boat.lateralSpeed);
+      boatGroup.rotation.z = 0.09;
+    } else if (isLeft) {
+      boatGroup.position.x = Math.min(CANAL_WIDTH * 0.42, boatGroup.position.x + boat.lateralSpeed);
+      boatGroup.rotation.z = -0.09;
+    } else {
+      boatGroup.rotation.z = 0;
+    }
+
+    boatGroup.position.z += boat.speed;
+    boatGroup.position.y = Math.sin(frameCounter * 0.07) * 0.3;
+
+    if (boatGroup.position.z >= CROSSING_LENGTH - 40) {
+      boat.isAtSandBank = true;
+      boat.speed = 0;
+      missionStatusTxt.innerText = "رسو عند خط بارليف! اضغط [ Space أو زر X ] لتشغيل مضخات المياه وتجريف الرمال!";
+      sandProgressBox.style.display = 'block';
+      actionHint.innerText = "اضغط باستمرار على [ المسطرة Space أو X بالذراع ] لضخ المياه بقوة وتفتيت الساتر الترابي!";
+      actionHint.style.color = "#00f0ff";
+    }
+  } else {
+    // 2. ضخ المياه وتجريف الساتر الترابي
+    if (isActionTriggered) {
+      playWaterPumpSound();
+      waterJetGroup.visible = true;
+
+      const pos = waterStreamGeo.attributes.position.array;
+      for (let i = 0; i < waterStreamCount; i++) {
+        if (Math.random() < 0.28) {
+          pos[i * 3] = boatGroup.position.x + (Math.random() - 0.5) * 1.5;
+          pos[i * 3 + 1] = 3.4;
+          pos[i * 3 + 2] = boatGroup.position.z + 9;
+
+          waterVels[i].set(
+            (Math.random() - 0.5) * 1.8,
+            Math.random() * 2.8 + 2.0,
+            7.5 + Math.random() * 3.0
+          );
+        }
+
+        pos[i * 3] += waterVels[i].x;
+        pos[i * 3 + 1] += waterVels[i].y;
+        pos[i * 3 + 2] += waterVels[i].z;
+        waterVels[i].y -= 0.07;
+      }
+      waterStreamGeo.attributes.position.needsUpdate = true;
+
+      sandClearedPercent = Math.min(100, sandClearedPercent + 0.32);
+      sandPercentTxt.innerText = Math.round(sandClearedPercent) + "%";
+      sandFill.style.width = sandClearedPercent + "%";
+
+      let sinkFactor = 1 - (sandClearedPercent / 100) * 0.92;
+      sandBankMesh.position.y = - (initialSandHeight * (1 - sinkFactor));
+      sandBankMesh.forts.position.y = sandBankMesh.position.y;
+
+      if (sandClearedPercent >= 100 && !isVictory) {
+        triggerVictory();
+      }
+    } else {
+      waterJetGroup.visible = false;
+    }
+  }
+
+  camera.position.set(boatGroup.position.x, 26, boatGroup.position.z - 42);
+  camera.lookAt(boatGroup.position.x, 8, boatGroup.position.z + 65);
+
+  boatSpeedTxt.innerText = Math.max(0, Math.round(boat.speed * 18));
+  let progressRatio = Math.min(1, Math.max(0, boatGroup.position.z / (CROSSING_LENGTH - 40)));
+  trackFill.style.width = (progressRatio * 100) + '%';
+
+  // 3. قذائف المدفعية
+  if (!boat.isAtSandBank && frameCounter % 50 === 0) {
+    spawnIncomingArtillery();
+  }
+
+  let threatDetected = false;
+  for (let i = fallingArtillery.length - 1; i >= 0; i--) {
+    let a = fallingArtillery[i];
+    a.mesh.position.y += a.vy;
+
+    let distToBoat = Math.hypot(a.targetX - boatGroup.position.x, a.targetZ - boatGroup.position.z);
+    if (distToBoat < 65 && a.mesh.position.y < 160) {
+      threatDetected = true;
+    }
+
+    if (a.mesh.position.y <= 0.6) {
+      createWaterGeyser(a.targetX, a.targetZ);
+
+      if (distToBoat < 16) {
+        triggerDefeat("أصابت قذيفة مدفعية معادية قارب الاقتحام مباشرة!");
+        return;
+      }
+
+      scene.remove(a.mesh);
+      scene.remove(a.ring);
+      fallingArtillery.splice(i, 1);
+    }
+  }
+
+  for (let i = waterGeysers.length - 1; i >= 0; i--) {
+    let g = waterGeysers[i];
+    g.life--;
+    g.group.scale.y += 0.05;
+    g.group.scale.x *= 1.02;
+    g.group.scale.z *= 1.02;
+
+    if (g.life <= 0) {
+      scene.remove(g.group);
+      waterGeysers.splice(i, 1);
+    }
+  }
+
+  warningBox.style.display = threatDetected ? 'block' : 'none';
+}
+
+// --- شاشات النتائج وتفعيل الفيديو ---
+function triggerDefeat(reason) {
+  isGameOver = true;
+  dialogTitle.innerText = "فشلت عملية العبور";
+  dialogTitle.style.color = "#ff3344";
+  dialogDesc.innerHTML = reason + "<br>يجب إعادة المحاولة ومناورة القذائف للوصول إلى الساتر الترابي.";
+  dialogBtn.innerText = "إعادة المحاولة";
+  dialog.style.display = "block";
+}
+
+function triggerVictory() {
+  isVictory = true;
+  if (bgMusic) bgMusic.pause();
+
+  endVideoModal.style.display = 'flex';
+  tankVideo.play().catch(e => {
+    console.log("Autoplay error on video play:", e);
+  });
+}
+
+tankVideo.onended = function() {
+  goToTank2();
+};
+
+function goToTank2() {
+  window.location.href = "tank2.html";
+}
+
+function handleDialogAction() {
+  window.location.reload();
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

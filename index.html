@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ملحمة النصر - محاكاة حرب أكتوبر 1973</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #c59b27;
+      --primary-hover: #e0b338;
+      --bg-dark: #0b0f19;
+      --bg-card: rgba(22, 29, 47, 0.75);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-red: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(197, 155, 39, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(185, 28, 28, 0.1) 0%, transparent 50%),
+        linear-gradient(to bottom, #070a10, #0d1322);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 90%;
+      max-width: 1020px;
+      margin: 40px auto;
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px solid rgba(197, 155, 39, 0.25);
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(197, 155, 39, 0.1);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo-container {
+      margin-bottom: 25px;
+    }
+
+    .logo-container img {
+      max-width: 140px;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border: 2px solid rgba(197, 155, 39, 0.4);
+      transition: transform 0.3s ease;
+    }
+
+    .logo-container img:hover {
+      transform: scale(1.05);
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    h1 span {
+      color: var(--primary);
+    }
+
+    .description {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 35px;
+      line-height: 1.8;
+    }
+
+    .stages-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #e5e7eb;
+      margin-bottom: 20px;
+      position: relative;
+      display: inline-block;
+    }
+
+    .stages-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 15px;
+      margin-bottom: 40px;
+    }
+
+    /* Links on cards */
+    .stage-card {
+      background: rgba(13, 19, 34, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 20px 14px;
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .stage-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--primary);
+      box-shadow: 0 8px 25px rgba(197, 155, 39, 0.25);
+      background: rgba(22, 33, 60, 0.85);
+    }
+
+    .stage-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: rgba(197, 155, 39, 0.15);
+      color: var(--primary);
+      border-radius: 50%;
+      font-size: 0.9rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .stage-card:hover .stage-number {
+      background: var(--primary);
+      color: #0b0f19;
+    }
+
+    .stage-icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+
+    .stage-card:hover .stage-icon {
+      transform: scale(1.15);
+    }
+
+    .stage-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f3f4f6;
+      margin-bottom: 4px;
+    }
+
+    .stage-file {
+      font-size: 0.75rem;
+      color: var(--primary);
+      opacity: 0.75;
+      font-family: monospace;
+      direction: ltr;
+    }
+
+    .stage-card:hover .stage-file {
+      opacity: 1;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, #c59b27 0%, #9a7617 100%);
+      color: #0b0f19;
+      font-size: 1.25rem;
+      font-weight: 800;
+      border: none;
+      padding: 16px 48px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(197, 155, 39, 0.4);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-start:hover {
+      background: linear-gradient(135deg, #e0b338 0%, #b38b1f 100%);
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 30px rgba(197, 155, 39, 0.6);
+    }
+
+    .btn-start:active {
+      transform: translateY(1px);
+    }
+
+    #videoModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .video-wrapper {
+      width: 100%;
+      max-width: 900px;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(197, 155, 39, 0.3);
+      border: 1px solid rgba(197, 155, 39, 0.3);
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      outline: none;
+    }
+
+    .skip-btn {
+      margin-top: 18px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #e5e7eb;
+      font-size: 0.95rem;
+      padding: 8px 24px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .skip-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #fff;
+    }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 1.8rem; }
+      .container { padding: 30px 18px; }
+      .stages-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- مشغل ملف الموسيقى Untitled.wave / Untitled.wav -->
+  <audio id="bg-audio" loop preload="auto">
+    <source src="Untitled.wave" type="audio/wav">
+    <source src="Untitled.wav" type="audio/wav">
+    <source src="Untitled.wave" type="audio/x-wav">
+  </audio>
+
+  <div class="container">
+    <!-- الشعار -->
+    <div class="logo-container">
+      <img src="logo.jpg" alt="شعار محاكاة حرب أكتوبر">
+    </div>
+
+    <h1>مرحباً بك في <span>ملحمة النصر</span></h1>
+    <p class="description">
+      عش تفاصيل أعظم انتصارات التاريخ الحديث، وخُض التحدي عبر 5 مراحل استراتيجية. اضغط على أي مرحلة للانتقال إليها مباشرة أو اضغط على زر البدء لتسلسل المحاكاة.
+    </p>
+
+    <div class="stages-title">مراحل المحاكاة (اختر مرحلة للعب مباشرة)</div>
+    <div class="stages-grid">
+      <!-- كارت 1: الضفادع البشرية -> frog.html -->
+      <a href="frog.html" class="stage-card">
+        <div class="stage-number">١</div>
+        <span class="stage-icon">🤿</span>
+        <div class="stage-name">الضفادع البشرية</div>
+        <span class="stage-file">frog.html</span>
+      </a>
+
+      <!-- كارت 2: الطيران -> plan.html -->
+      <a href="plan.html" class="stage-card">
+        <div class="stage-number">٢</div>
+        <span class="stage-icon">✈️</span>
+        <div class="stage-name">الضربة الجوية (الطيران)</div>
+        <span class="stage-file">plan.html</span>
+      </a>
+
+      <!-- كارت 3: اقتحام وعبور القناة -> tank1.html -->
+      <a href="tank1.html" class="stage-card">
+        <div class="stage-number">٣</div>
+        <span class="stage-icon">🌊</span>
+        <div class="stage-name">اقتحام وعبور القناة</div>
+        <span class="stage-file">tank1.html</span>
+      </a>
+
+      <!-- كارت 4: معارك الدبابات -> tank2.html -->
+      <a href="tank2.html" class="stage-card">
+        <div class="stage-number">٤</div>
+        <span class="stage-icon">🛡️</span>
+        <div class="stage-name">معارك الدبابات</div>
+        <span class="stage-file">tank2.html</span>
+      </a>
+
+      <!-- كارت 5: التعمير والمستقبل -> zfinal.mp4 -->
+      <a href="zfinal.mp4" class="stage-card">
+        <div class="stage-number">٥</div>
+        <span class="stage-icon">🏗️</span>
+        <div class="stage-name">التعمير والمستقبل</div>
+        <span class="stage-file">zfinal.mp4</span>
+      </a>
+    </div>
+
+    <!-- زر بدء المحاكاة بالتسلسل الكامل (فيديو ثم المرحلة الأولى) -->
+    <button class="btn-start" onclick="startExperience()">
+      <span>ابدأ المحاكاة من البداية</span>
+      <span>⚔️</span>
+    </button>
+  </div>
+
+  <!-- مشغل الفيديو المنبثق للمرحلة الأولى -->
+  <div id="videoModal">
+    <div class="video-wrapper">
+      <video id="introVideo" preload="auto">
+        <source src="frog.mp4" type="video/mp4">
+        متصفحك لا يدعم تشغيل الفيديو.
+      </video>
+    </div>
+    <button class="skip-btn" onclick="goToGame()">تخطي الفيديو والدخول للعبة مباشرة ⏩</button>
+  </div>
+
+  <script>
+    const bgAudio = document.getElementById('bg-audio');
+    const modal = document.getElementById('videoModal');
+    const video = document.getElementById('introVideo');
+
+    // تشغيل ملف الموسيقى Untitled.wave
+    function playBgMusic() {
+      if (bgAudio && bgAudio.paused) {
+        bgAudio.play().catch(err => {
+          console.log("Autoplay waiting for interaction:", err);
+        });
+      }
+    }
+
+    // تشغيل عند تحميل الصفحة
+    window.addEventListener('DOMContentLoaded', playBgMusic);
+    window.addEventListener('load', playBgMusic);
+
+    // تشغيل عند النقر أو لمس أو الضغط على أي شيء في الصفحة
+    document.addEventListener('click', playBgMusic, { passive: true });
+    document.addEventListener('keydown', playBgMusic, { passive: true });
+    document.addEventListener('touchstart', playBgMusic, { passive: true });
+    document.addEventListener('pointerdown', playBgMusic, { passive: true });
+
+    function startExperience() {
+      // إيقاف موسيقى الخلفية مؤقتاً لتشغيل صوت الفيديو
+      if (bgAudio) bgAudio.pause();
+
+      modal.style.display = 'flex';
+      video.play().catch(error => {
+        console.log("Autoplay was prevented:", error);
+      });
+    }
+
+    video.onended = function() {
+      goToGame();
+    };
+
+    function goToGame() {
+      window.location.href = "frog.html";
+    }
+  </script>
+
+</body>
+</html>
